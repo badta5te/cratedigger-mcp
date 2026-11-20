@@ -11,6 +11,8 @@ from fastmcp import Context, FastMCP
 from fastmcp.exceptions import ToolError
 from pydantic import Field, ValidationError
 
+from cratedigger_mcp.cache import CATALOG_TTL, TtlCache
+from cratedigger_mcp.clock import Clock, SystemClock
 from cratedigger_mcp.discogs import (
     DiscogsClient,
     DiscogsError,
@@ -40,15 +42,22 @@ TOKEN_HINT = (
 
 
 def create_server(
-    settings: Settings, transport: httpx2.AsyncBaseTransport | None = None
+    settings: Settings,
+    transport: httpx2.AsyncBaseTransport | None = None,
+    clock: Clock | None = None,
 ) -> FastMCP[dict[str, Any]]:
-    """Build the server. Tests pass a mock `transport` that plays the part of Discogs."""
+    """Build the server.
+
+    Tests pass a mock `transport` that plays the part of Discogs and a `clock` they control.
+    """
+    clock = clock or SystemClock()
+    cache = TtlCache(clock)
 
     @asynccontextmanager
     async def lifespan(_: FastMCP[dict[str, Any]]) -> AsyncIterator[dict[str, Any]]:
         token = settings.discogs_token.get_secret_value()
         async with build_http_client(token, transport) as http:
-            yield {"discogs": DiscogsClient(http)}
+            yield {"discogs": DiscogsClient(http, clock)}
 
     mcp: FastMCP[dict[str, Any]] = FastMCP(
         "cratedigger-mcp", instructions=INSTRUCTIONS, lifespan=lifespan, mask_error_details=True
@@ -80,7 +89,10 @@ def create_server(
         Do not use it to find a Release by name (use discogs_search) or for prices.
         """
         try:
-            release = await discogs_client(ctx).get_release(release_id)
+            client = discogs_client(ctx)
+            release = await cache.get_or_load(
+                ("release", release_id), CATALOG_TTL, lambda: client.get_release(release_id)
+            )
         except NotFoundError:
             raise ToolError(
                 f"Release {release_id} not found on Discogs. "
