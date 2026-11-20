@@ -1,5 +1,16 @@
 # Research: MCP server for Discogs, record notes and Last.fm (Python, FastMCP)
 
+> **Partly superseded (2026-11-20).** Scope, storage and naming decisions made after this research live in `docs/adr/` and `GLOSSARY.md` and override sections 3, 4, 6 and 7 where they differ. This document remains the factual research reference (sections 2, 5 and 8). Summary of the decisions:
+>
+> - **Name:** `cratedigger-mcp` ("Cratedigger for Discogs"), MIT. It replaces the `vinyl-mcp` placeholder.
+> - **Scope:** Discogs only, for a single Owner with a personal access token. No record notes and no Last.fm client; Claude joins other sources through their own connectors ([ADR-0001](adr/0001-discogs-only-server.md)).
+> - **Runtime:** local stdio only (Claude Desktop and Claude Code on the Owner's Mac). Stage 3 (remote, OAuth, hosting) is dropped.
+> - **Storage:** no database and no collector. Prices are cached in memory for 1 h, the Collection and the Wantlist for 15 min. No price watch or price history; background price alerts are left to Discogs' Wantlister ([ADR-0002](adr/0002-no-persistent-storage.md)).
+> - **MVP tools (11):** `discogs_search`, `discogs_get_release`, `discogs_list_master_releases` (was `discogs_list_pressings`), `discogs_get_prices` (≤ 10 Releases, Lowest price and number for sale, no `price_suggestions`), `discogs_list_collection`, `discogs_list_wantlist`, `discogs_collection_summary`, `discogs_match_collection`, `discogs_wantlist_prices`, `discogs_wantlist_add`, `discogs_wantlist_remove` (always asks for confirmation). Plus the `identify_release` prompt. The Collection is read-only.
+> - **`discogs_match_collection(albums: [{artist, title}])`:** reports per album whether it is in the Collection (any Release of the same Master, in any Format; the Format is shown), in the Wantlist, a possible match (similar title under a different Master, e.g. an anniversary edition), or absent. Releases without a Master fall back to normalized artist and title.
+> - **`discogs_wantlist_prices(max_price?, currency="EUR", query?, limit=30)`:** at most 30 Wants per call because of the rate limit and the 240 s call timeout; sorted by Lowest price, stated as "lowest listing, any condition, excl. shipping".
+> - **Testing:** stack from 2.9 as is; tool-selection evals are out of the roadmap, and a `list_tools` contract test is part of the MVP.
+
 Research date: **2026-11-20**. This document merges 7 parallel research tracks into a single picture. Where sources contradicted each other, the choice and the reason for it are stated explicitly.
 
 The raw per-track notes (`01-mcp-fastmcp.md` … `07-tooling-packaging.md`) are kept locally and are not part of the repository. They use their own labels and partly contradict this document; where they diverge, **this document is authoritative**: the contradictions were resolved while merging. For example, Discogs facts come from the Discogs track rather than from "403 / from memory" in other notes; the Discogs API has no median price; the MCP spec revision is 2026-07-28.
@@ -543,21 +554,34 @@ That's 10 tools in the MVP and about 20 in the full set, within the recommended 
 
 ## 7. Open questions for the owner
 
+All resolved on 2026-11-20; each answer follows its question.
+
 1. **Price history and the Discogs ToS.** Options:
    - **(A)** price watch only, with the last check and no history (less risky, but this too should be confirmed with Discogs);
    - **(B)** write to Discogs Support and build history after getting permission;
    - **(C)** build history locally for personal use, accepting the risk, without publishing the data.
 
    Recommendation: A, with B in parallel.
+
+   **Resolved:** none of them. Prices are not stored at all; wantlist prices are checked live and alerts are left to Discogs' Wantlister (ADR-0002).
 2. **Notes.** Where do they live (an Obsidian vault? a separate folder?) and in what format (frontmatter, wikilinks)? Are tools for general notes needed, or are "record cards" enough, with general notes left to an existing filesystem or Obsidian server?
+   **Resolved:** notes are out of scope; the Owner keeps notes in Craft and does not take notes about records (ADR-0001).
 3. **Last.fm.** Is there an account, and do Spotify or other players scrobble to it? Without that, the "listening ↔ collection" link is empty.
+   **Resolved:** Last.fm is not part of the server; listening data comes from other connectors and is joined through `discogs_match_collection` (ADR-0001).
 4. **Discogs seller settings.** Are they completed? Without them `price_suggestions` doesn't work.
+   **Resolved:** not completed; `price_suggestions` is dropped.
 5. **Home hardware.** Is it a Mac (then launchd; systemd is Linux-only), a Raspberry Pi or a VPS? Is there an own domain (needed for Cloudflare Tunnel)?
+   **Resolved:** no host is needed; the server runs locally over stdio on the Owner's Mac.
 6. **Claude plan**, and whether the "Request headers" section is visible in the Add custom connector dialog. This decides whether a bearer token can replace OAuth.
+   **Resolved:** moot, there is no remote server.
 7. **Write tools.** Should the wantlist and collection be modifiable from Claude, or is read access plus notes enough?
+   **Resolved:** Wantlist add and remove are in the MVP (remove always asks for confirmation); the Collection is read-only.
 8. **Project name and license.** The Discogs policy requires the "… for Discogs" format (2017 snapshot); `discogs-mcp` is free on PyPI but in a gray zone. MIT or Apache-2.0?
+   **Resolved:** `cratedigger-mcp` ("Cratedigger for Discogs"), MIT.
 9. **Collection and wantlist size.** It determines the collector's run time, the request cost of `query`, and whether a local SQLite cache of the collection is needed (see section 4, "Cost in Discogs requests").
+   **Resolved:** assumed up to ~1,000 Copies and ~300 Wants; an in-memory cache is enough, no SQLite.
 10. **Default currency** for prices (EUR? RUB is not supported by Discogs: the `curr_abbr` list is USD, GBP, EUR, CAD, AUD, JPY, CHF, MXN, BRL, NZD, SEK, ZAR [DOC]).
+    **Resolved:** EUR.
 
 ---
 
