@@ -1,4 +1,4 @@
-# discogs-mcp
+# cratedigger-mcp
 
 ## Conventions
 
@@ -9,7 +9,7 @@
 
 ### Issue tracker
 
-Issues live in GitHub Issues for `badta5te/discogs-mcp`, managed via the `gh` CLI. See `docs/agents/issue-tracker.md`.
+Issues live in GitHub Issues for `badta5te/cratedigger-mcp`, managed via the `gh` CLI. See `docs/agents/issue-tracker.md`.
 
 ### Triage labels
 

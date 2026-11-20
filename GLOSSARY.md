@@ -1,4 +1,4 @@
-# discogs-mcp
+# cratedigger-mcp
 
 A personal assistant layer over one owner's Discogs world: the catalog, the owner's Collection and Wantlist, and the marketplace.
 

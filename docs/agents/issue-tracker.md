@@ -1,6 +1,6 @@
 # Issue tracker: GitHub
 
-Issues and specs for this repo live as GitHub issues in `badta5te/discogs-mcp`. Use the `gh` CLI for all operations.
+Issues and specs for this repo live as GitHub issues in `badta5te/cratedigger-mcp`. Use the `gh` CLI for all operations.
 
 Write all issue titles, bodies, comments and labels in English only.
 
