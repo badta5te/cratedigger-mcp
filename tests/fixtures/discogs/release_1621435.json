@@ -1,0 +1,164 @@
+{
+  "id": 1621435,
+  "status": "Accepted",
+  "year": 1993,
+  "resource_url": "https://api.discogs.com/releases/1621435",
+  "uri": "https://www.discogs.com/release/1621435-Fishbone-Swim",
+  "artists": [
+    {
+      "name": "Fishbone",
+      "anv": "",
+      "join": "",
+      "role": "",
+      "tracks": "",
+      "id": 121386,
+      "resource_url": "https://api.discogs.com/artists/121386"
+    }
+  ],
+  "artists_sort": "Fishbone",
+  "labels": [
+    {
+      "name": "Columbia",
+      "catno": "XPR 1948",
+      "entity_type": "1",
+      "entity_type_name": "Label",
+      "id": 1866,
+      "resource_url": "https://api.discogs.com/labels/1866"
+    }
+  ],
+  "series": [],
+  "companies": [],
+  "formats": [
+    {
+      "name": "Vinyl",
+      "qty": "1",
+      "descriptions": [
+        "12\"",
+        "Promo"
+      ]
+    }
+  ],
+  "data_quality": "Correct",
+  "community": {
+    "have": 44,
+    "want": 25,
+    "rating": {
+      "count": 4,
+      "average": 3.5
+    },
+    "submitter": {
+      "username": "contributor-1",
+      "resource_url": "https://api.discogs.com/users/contributor-1"
+    },
+    "contributors": [
+      {
+        "username": "contributor-1",
+        "resource_url": "https://api.discogs.com/users/contributor-1"
+      },
+      {
+        "username": "contributor-2",
+        "resource_url": "https://api.discogs.com/users/contributor-2"
+      },
+      {
+        "username": "contributor-3",
+        "resource_url": "https://api.discogs.com/users/contributor-3"
+      }
+    ],
+    "data_quality": "Correct",
+    "status": "Accepted"
+  },
+  "format_quantity": 1,
+  "date_added": "2009-01-23T07:50:52-08:00",
+  "date_changed": "2013-07-29T13:58:27-07:00",
+  "master_id": 43077,
+  "master_url": "https://api.discogs.com/masters/43077",
+  "title": "Swim",
+  "country": "UK",
+  "released": "1993",
+  "released_formatted": "1993",
+  "identifiers": [],
+  "genres": [
+    "Rock"
+  ],
+  "styles": [
+    "Alternative Rock",
+    "Funk Metal"
+  ],
+  "tracklist": [
+    {
+      "position": "A",
+      "type_": "track",
+      "title": "Swim (T.Ray Mix)",
+      "extraartists": [
+        {
+          "name": "T-Ray",
+          "anv": "T. Ray",
+          "join": "",
+          "role": "Remix",
+          "tracks": "",
+          "id": 90131,
+          "resource_url": "https://api.discogs.com/artists/90131"
+        }
+      ],
+      "duration": "5:27"
+    },
+    {
+      "position": "B",
+      "type_": "track",
+      "title": "Swim (JB Dub Mix)",
+      "extraartists": [
+        {
+          "name": "Andy Wallace",
+          "anv": "",
+          "join": "",
+          "role": "Mixed By",
+          "tracks": "",
+          "id": 59472,
+          "resource_url": "https://api.discogs.com/artists/59472"
+        },
+        {
+          "name": "John Bigham",
+          "anv": "",
+          "join": "",
+          "role": "Remix",
+          "tracks": "",
+          "id": 327544,
+          "resource_url": "https://api.discogs.com/artists/327544"
+        }
+      ],
+      "duration": "6:15"
+    }
+  ],
+  "extraartists": [
+    {
+      "name": "Fishbone",
+      "anv": "",
+      "join": "",
+      "role": "Producer",
+      "tracks": "",
+      "id": 121386,
+      "resource_url": "https://api.discogs.com/artists/121386"
+    },
+    {
+      "name": "Terry Date",
+      "anv": "",
+      "join": "",
+      "role": "Producer",
+      "tracks": "",
+      "id": 93046,
+      "resource_url": "https://api.discogs.com/artists/93046"
+    },
+    {
+      "name": "John Bigham",
+      "anv": "",
+      "join": "",
+      "role": "Written-By",
+      "tracks": "",
+      "id": 327544,
+      "resource_url": "https://api.discogs.com/artists/327544"
+    }
+  ],
+  "estimated_weight": 230,
+  "blocked_from_sale": false,
+  "is_offensive": false
+}

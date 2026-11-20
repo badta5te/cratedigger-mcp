@@ -1,0 +1,62 @@
+[project]
+name = "cratedigger-mcp"
+version = "0.1.0"
+description = "Cratedigger for Discogs: an MCP server for your Discogs Collection, Wantlist, Releases and Marketplace prices."
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "Pavel Mikhailov" }]
+requires-python = ">=3.12"
+keywords = ["mcp", "discogs", "vinyl", "claude", "record-collection"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+]
+dependencies = [
+    "fastmcp>=4.2.3,<4.3",
+    "httpx2>=2.16,<3",
+    "pydantic-settings>=2.16,<3",
+]
+
+[project.urls]
+Repository = "https://github.com/badta5te/cratedigger-mcp"
+Issues = "https://github.com/badta5te/cratedigger-mcp/issues"
+
+[project.scripts]
+cratedigger-mcp = "cratedigger_mcp.server:main"
+
+[build-system]
+requires = ["uv_build>=0.13.9,<0.14.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = [
+    "inline-snapshot>=0.37.0",
+    "mypy>=2.4",
+    "pytest>=9",
+    "pytest-asyncio>=1.5",
+    "ruff>=0.17",
+]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "function"
+testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+extend-exclude = ["docs"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "UP", "B", "SIM", "RUF", "ASYNC", "PT"]
+# Typographic characters used on purpose in the cards Claude reads.
+allowed-confusables = ["–", "×"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+files = ["src", "tests"]
+plugins = ["pydantic.mypy"]
