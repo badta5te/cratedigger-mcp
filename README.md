@@ -59,7 +59,7 @@ Requires uv 0.13.x and [just](https://just.systems).
 
 ```sh
 uv sync          # create .venv from uv.lock
-just check       # ruff, mypy and pytest: the same command CI runs on Python 3.12–3.14
+just check       # ruff, mypy and pytest: the same command CI runs on Python 3.12–3.15
 just fix         # apply ruff fixes and formatting
 just serve       # run the server over stdio (needs DISCOGS_TOKEN)
 ```
