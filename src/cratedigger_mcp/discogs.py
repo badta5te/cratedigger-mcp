@@ -111,6 +111,8 @@ class Release(_Model):
 
 
 SearchType = Literal["release", "master", "artist", "label"]
+# The orders Discogs can sort a Master's Releases in.
+MasterReleaseSort = Literal["released", "title", "format", "label", "catno", "country"]
 # Query-string parameters of a Discogs request, such as q, artist, year or page.
 QueryParams = Mapping[str, str | int]
 
@@ -140,6 +142,34 @@ class Pagination(_Model):
 class SearchPage(_Model):
     pagination: Pagination
     results: list[SearchResult] = Field(default_factory=list)
+
+
+class Master(_Model):
+    id: int
+    title: str
+    artists: list[Artist] = Field(default_factory=list)
+    year: int = 0
+    uri: str = ""
+
+
+class MasterRelease(_Model):
+    """One Release in the list of a Master's Releases."""
+
+    model_config = ConfigDict(coerce_numbers_to_str=True)
+
+    id: int
+    title: str = ""
+    label: str = ""
+    catno: str = ""
+    country: str = ""
+    released: str = ""  # usually the year alone, "0" when unknown
+    major_formats: list[str] = Field(default_factory=list)
+    format: str = ""  # the Format details, e.g. '7", 45 RPM, Single'
+
+
+class MasterReleasesPage(_Model):
+    pagination: Pagination
+    versions: list[MasterRelease] = Field(default_factory=list)
 
 
 class _Pacer:
@@ -228,6 +258,20 @@ class DiscogsClient:
         """One page of catalog search results."""
         paged = {**params, "type": search_type, "per_page": per_page, "page": page}
         return await self._get("/database/search", SearchPage, paged)
+
+    async def get_master(self, master_id: int) -> Master:
+        return await self._get(f"/masters/{master_id}", Master)
+
+    async def list_master_releases(
+        self, master_id: int, params: QueryParams, per_page: int, page: int
+    ) -> MasterReleasesPage:
+        """One page of a Master's Releases, filtered and sorted by `params`.
+
+        Discogs answers an unknown master_id here with every Release in its database instead of
+        HTTP 404, so look the Master up with `get_master` first.
+        """
+        paged = {**params, "per_page": per_page, "page": page}
+        return await self._get(f"/masters/{master_id}/versions", MasterReleasesPage, paged)
 
     async def _get[M: BaseModel](
         self, path: str, model: type[M], params: QueryParams | None = None

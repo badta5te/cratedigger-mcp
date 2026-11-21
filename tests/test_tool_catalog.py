@@ -32,6 +32,13 @@ async def test_tool_catalog_matches_the_contract(client: Client[Any]) -> None:
                 "open_world": True,
             },
             {
+                "name": "discogs_list_master_releases",
+                "title": "List Releases of a Discogs Master",
+                "read_only": True,
+                "destructive": None,
+                "open_world": True,
+            },
+            {
                 "name": "discogs_search",
                 "title": "Search Discogs Catalog",
                 "read_only": True,
@@ -56,6 +63,16 @@ async def test_search_description_points_to_the_owner_tools(client: Client[Any])
     description = tools["discogs_search"].description or ""
     for other in ("discogs_list_collection", "discogs_list_wantlist", "discogs_match_collection"):
         assert other in description
+
+
+async def test_master_releases_description_names_the_search_keywords(
+    client: Client[Any],
+) -> None:
+    tools = {tool.name: tool for tool in await client.list_tools()}
+
+    description = tools["discogs_list_master_releases"].description or ""
+    for term in ("pressings", "versions", "discogs_get_release", "discogs_search"):
+        assert term in description
 
 
 async def test_every_tool_explains_itself(client: Client[Any]) -> None:

@@ -15,6 +15,10 @@ stores nothing on disk.
 > - `discogs_get_release`: the card of one Release by `release_id`: label, catalog number, Format,
 >   country, year, tracklist, have/want counts and Master. Its detailed form adds identifiers
 >   (matrix/runout, barcode) and release notes.
+> - `discogs_list_master_releases`: the Releases of a Master by `master_id`, to compare the
+>   editions of an album by country, year, label, catalog number and Format. It filters by
+>   Format, country and year, sorts by release date by default and pages, and every line carries
+>   the `release_id`.
 >
 > And one prompt:
 >

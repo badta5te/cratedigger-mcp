@@ -1,0 +1,81 @@
+{
+  "pagination": {
+    "page": 1,
+    "pages": 23,
+    "per_page": 3,
+    "items": 67,
+    "urls": {
+      "last": "https://api.discogs.com/masters/96559/versions?per_page=3&page=23&sort=released&sort_order=asc",
+      "next": "https://api.discogs.com/masters/96559/versions?per_page=3&page=2&sort=released&sort_order=asc"
+    }
+  },
+  "filters": {
+    "applied": {},
+    "available": {}
+  },
+  "versions": [
+    {
+      "id": 12442839,
+      "label": "RCA",
+      "country": "UK",
+      "title": "Never Gonna Give You Up",
+      "major_formats": [
+        "Vinyl"
+      ],
+      "format": "7\", 45 RPM, Single",
+      "catno": "PB 41447",
+      "released": "1987",
+      "status": "Accepted",
+      "resource_url": "https://api.discogs.com/releases/12442839",
+      "thumb": "https://i.discogs.com/jFjo0X5EOrV13_hc4yGROJ1j3K4j2GhhugGH8GU_qpY/rs:fit/g:sm/q:40/h:150/w:150/czM6Ly9kaXNjb2dz/LWRhdGFiYXNlLWlt/YWdlcy9SLTEyNDQy/ODM5LTE1MzUzODI4/ODUtMjg1NS5qcGVn.jpeg",
+      "stats": {
+        "community": {
+          "in_wantlist": 128,
+          "in_collection": 381
+        }
+      }
+    },
+    {
+      "id": 182213,
+      "label": "RCA Victor",
+      "country": "US",
+      "title": "Never Gonna Give You Up",
+      "major_formats": [
+        "Vinyl"
+      ],
+      "format": "12\", 33 ⅓ RPM, Maxi-Single",
+      "catno": "6784-1-RD",
+      "released": "1987",
+      "status": "Accepted",
+      "resource_url": "https://api.discogs.com/releases/182213",
+      "thumb": "https://i.discogs.com/v38LYnLJ8Zf-H8xCEgkG3cUn-Hrct_WcUMH-wRbFYz4/rs:fit/g:sm/q:40/h:150/w:150/czM6Ly9kaXNjb2dz/LWRhdGFiYXNlLWlt/YWdlcy9SLTE4MjIx/My0xNDY2NDQ0ODMx/LTYxOTQuanBlZw.jpeg",
+      "stats": {
+        "community": {
+          "in_wantlist": 578,
+          "in_collection": 1398
+        }
+      }
+    },
+    {
+      "id": 2733429,
+      "label": "RCA",
+      "country": "Greece",
+      "title": "Never Gonna Give You Up",
+      "major_formats": [
+        "Vinyl"
+      ],
+      "format": "12\"",
+      "catno": "RCA 4101",
+      "released": "1987",
+      "status": "Accepted",
+      "resource_url": "https://api.discogs.com/releases/2733429",
+      "thumb": "https://i.discogs.com/CpHpnyn98l1p_IXJbnuv_bWGYI4mV_PNmF1BvG8wN7c/rs:fit/g:sm/q:40/h:150/w:150/czM6Ly9kaXNjb2dz/LWRhdGFiYXNlLWlt/YWdlcy9SLTI3MzM0/MjktMTQxMjQ0OTEw/My0zMDE5LmpwZWc.jpeg",
+      "stats": {
+        "community": {
+          "in_wantlist": 181,
+          "in_collection": 61
+        }
+      }
+    }
+  ]
+}

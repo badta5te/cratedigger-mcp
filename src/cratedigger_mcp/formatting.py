@@ -10,6 +10,10 @@ from urllib.parse import urlencode
 from cratedigger_mcp.discogs import (
     Artist,
     Format,
+    Master,
+    MasterRelease,
+    MasterReleaseSort,
+    MasterReleasesPage,
     QueryParams,
     Release,
     SearchPage,
@@ -19,6 +23,16 @@ from cratedigger_mcp.discogs import (
 )
 
 ResponseFormat = Literal["concise", "detailed"]
+
+# How each sort order of a Master's Releases reads in the heading.
+MASTER_RELEASE_SORTS: dict[MasterReleaseSort, str] = {
+    "released": "release date",
+    "title": "title",
+    "format": "Format",
+    "label": "label",
+    "catno": "catalog number",
+    "country": "country",
+}
 
 NOTES_LIMIT = 1500
 _DISAMBIGUATION = re.compile(r" \(\d+\)$")
@@ -83,6 +97,71 @@ def search_results(
         *footer,
     ]
     return "\n".join(lines)
+
+
+def master_releases(
+    master: Master, found: MasterReleasesPage, filters: QueryParams, sort: MasterReleaseSort
+) -> str:
+    """One page of a Master's Releases, numbered across pages, with a next-page hint."""
+    pagination = found.pagination
+    footer = ["", attribution(master.uri or f"https://www.discogs.com/master/{master.id}")]
+    name = (
+        f"{master.title} — {_artist_credit(master.artists)}"
+        + (f" ({master.year})" if master.year else "")
+        + f" [master_id={master.id}]"
+    )
+    applied = ", ".join(f"{key}={value}" for key, value in filters.items())
+    if pagination.items == 0:
+        if not filters:
+            return "\n".join([f"Discogs lists no Releases of the Master {name}.", *footer])
+        return "\n".join(
+            [
+                f"No Releases of the Master {name} match {applied}. Filter values are exact and "
+                "case-sensitive, as Discogs writes them (Vinyl, CD, UK): check them or use "
+                "fewer filters.",
+                *footer,
+            ]
+        )
+    if not found.versions:  # Discogs answers a page past the last one with no Releases
+        return "\n".join(
+            [
+                f"No Releases on page {pagination.page}: the list has {pagination.pages} pages "
+                f"of {pagination.per_page}. Use a lower page.",
+                *footer,
+            ]
+        )
+    heading = ", ".join(
+        filter(
+            None,
+            [f"Releases of the Master {name}", applied, f"sorted by {MASTER_RELEASE_SORTS[sort]}"],
+        )
+    )
+    first = (pagination.page - 1) * pagination.per_page + 1
+    last = first + len(found.versions) - 1
+    hint = f"Showing {first}–{last} of {pagination.items}."
+    if pagination.page < pagination.pages:
+        hint += f" Use page={pagination.page + 1} for more."
+    hint += " Use discogs_get_release with a release_id for the full card."
+    lines = [
+        f"{heading}: page {pagination.page} of {pagination.pages} ({pagination.items} Releases)",
+        *(
+            f"{number}. {_master_release(release, master)}"
+            for number, release in enumerate(found.versions, start=first)
+        ),
+        "",
+        hint,
+        *footer,
+    ]
+    return "\n".join(lines)
+
+
+def _master_release(release: MasterRelease, master: Master) -> str:
+    title = release.title if release.title != master.title else ""
+    year = release.released if release.released not in ("", "0") else ""
+    label_catno = " – ".join(filter(None, [release.label, release.catno]))
+    formats = ", ".join(filter(None, [*release.major_formats, release.format]))
+    details = [title, year, release.country, label_catno, formats]
+    return " ".join(filter(None, [" · ".join(filter(None, details)), f"[release_id={release.id}]"]))
 
 
 def _search_heading(search_type: SearchType, query: str, filters: QueryParams) -> str:

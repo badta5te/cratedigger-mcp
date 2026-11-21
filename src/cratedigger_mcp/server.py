@@ -16,12 +16,18 @@ from cratedigger_mcp.clock import Clock, SystemClock
 from cratedigger_mcp.discogs import (
     DiscogsClient,
     DiscogsError,
+    MasterReleaseSort,
     NotFoundError,
     SearchType,
     UnauthorizedError,
     build_http_client,
 )
-from cratedigger_mcp.formatting import ResponseFormat, release_card, search_results
+from cratedigger_mcp.formatting import (
+    ResponseFormat,
+    master_releases,
+    release_card,
+    search_results,
+)
 from cratedigger_mcp.settings import Settings
 
 INSTRUCTIONS = """\
@@ -215,6 +221,69 @@ def create_server(
         except DiscogsError as error:
             raise tool_error(error) from None
         return search_results(found, type, query, filters)
+
+    @mcp.tool(title="List Releases of a Discogs Master", annotations=READ_ONLY, output_schema=None)
+    async def discogs_list_master_releases(
+        ctx: Context,
+        master_id: Annotated[int, Field(description="Discogs master_id, e.g. 96559.", gt=0)],
+        format: Annotated[
+            str | None,
+            Field(description='Only this Format, exactly as Discogs writes it: Vinyl, CD, 7".'),
+        ] = None,
+        country: Annotated[
+            str | None,
+            Field(description="Only Releases from this country, exactly as Discogs writes it: UK."),
+        ] = None,
+        year: Annotated[int | None, Field(description="Only this release year.", gt=0)] = None,
+        sort: Annotated[
+            MasterReleaseSort,
+            Field(
+                description="Order of the list: released (default, oldest first), title, "
+                "format, label, catno or country."
+            ),
+        ] = "released",
+        limit: Annotated[int, Field(description="Releases per page.", ge=1, le=50)] = 20,
+        page: Annotated[int, Field(description="Page of Releases, from 1.", ge=1)] = 1,
+    ) -> str:
+        """List the Releases of a Discogs Master: all pressings, versions and editions of an album.
+
+        Use it to compare the available editions of an album by country, year, label, catalog
+        number and Format, narrowed to one Format, country or year. Each line carries the
+        release_id for discogs_get_release. Results are sorted by release date and paged.
+        Find the master_id with discogs_search (type="master") or on a Release card.
+        """
+        filters = {
+            name: value
+            for name, value in {"format": format, "country": country, "year": year}.items()
+            if value is not None and value != ""
+        }
+        params = {
+            **{("released" if name == "year" else name): value for name, value in filters.items()},
+            "sort": sort,
+            "sort_order": "asc",
+        }
+        client = discogs_client(ctx)
+        try:
+            # Looked up first: Discogs does not answer an unknown Master's versions with 404.
+            master = await cache.get_or_load(
+                ("master", master_id), CATALOG_TTL, lambda: client.get_master(master_id)
+            )
+        except NotFoundError:
+            raise ToolError(
+                f"Master {master_id} not found on Discogs. "
+                'Use discogs_search with type="master" to find the master_id.'
+            ) from None
+        except DiscogsError as error:
+            raise tool_error(error) from None
+        try:
+            found = await cache.get_or_load(
+                ("master_releases", master_id, tuple(params.items()), limit, page),
+                CATALOG_TTL,
+                lambda: client.list_master_releases(master_id, params, per_page=limit, page=page),
+            )
+        except DiscogsError as error:
+            raise tool_error(error) from None
+        return master_releases(master, found, filters, sort)
 
     @mcp.prompt(title="Identify a Discogs Release")
     def identify_release(

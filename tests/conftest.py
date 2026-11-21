@@ -67,6 +67,9 @@ class FakeDiscogs:
             kind: load_fixture(f"search_{kind}.json")
             for kind in ("release", "master", "artist", "label")
         }
+        self.masters: dict[int, Any] = {96559: load_fixture("master_96559.json")}
+        # The captured first page of each Master's Releases, sorted by release date.
+        self.master_releases: dict[int, Any] = {96559: load_fixture("master_versions_96559.json")}
         self.reject_token = False
         self.failing_status: int | None = None
         self.unreachable = False
@@ -136,6 +139,17 @@ class FakeDiscogs:
             return httpx2.Response(200, headers=headers, json=release)
         if parts == ["database", "search"]:
             return self._search(request, headers)
+        if len(parts) >= 2 and parts[0] == "masters" and parts[1].isdigit():
+            master_id = int(parts[1])
+            if len(parts) == 2:
+                master = self.masters.get(master_id)
+                if master is None:
+                    return httpx2.Response(
+                        404, headers=headers, json=load_fixture("error_404_master.json")
+                    )
+                return httpx2.Response(200, headers=headers, json=master)
+            if parts[2:] == ["versions"]:
+                return self._master_releases(master_id, request, headers)
         return httpx2.Response(
             404, headers=headers, json={"message": "The requested resource was not found."}
         )
@@ -157,6 +171,27 @@ class FakeDiscogs:
                 headers=headers,
                 json={"message": f"Page {page} is outside of valid range [1, {pages}]."},
             )
+        pagination.update(page=page, per_page=per_page, pages=pages)
+        return httpx2.Response(200, headers=headers, json=found)
+
+    def _master_releases(
+        self, master_id: int, request: httpx2.Request, headers: dict[str, str]
+    ) -> httpx2.Response:
+        """Serve the captured page of a Master's Releases, numbered as the requested page.
+
+        Like Discogs, an unknown Master is not HTTP 404 here: Discogs answers with every
+        Release in its database. A page past the last one is HTTP 200 with no Releases.
+        """
+        found = copy.deepcopy(self.master_releases.get(master_id, self.master_releases[96559]))
+        pagination = found["pagination"]
+        if master_id not in self.master_releases:
+            pagination["items"] = 8_169_703
+        params = request.url.params
+        page = int(params.get("page", "1"))
+        per_page = int(params.get("per_page", "50"))
+        pages = max(1, math.ceil(pagination["items"] / per_page))
+        if page > pages:
+            found["versions"] = []
         pagination.update(page=page, per_page=per_page, pages=pages)
         return httpx2.Response(200, headers=headers, json=found)
 
