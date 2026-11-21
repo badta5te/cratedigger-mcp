@@ -4,9 +4,19 @@ Every card carries the IDs for the next call and ends with the Discogs attributi
 """
 
 import re
+from collections.abc import Mapping
 from typing import Literal
+from urllib.parse import urlencode
 
-from cratedigger_mcp.discogs import Artist, Format, Release, Track
+from cratedigger_mcp.discogs import (
+    Artist,
+    Format,
+    Release,
+    SearchPage,
+    SearchResult,
+    SearchType,
+    Track,
+)
 
 ResponseFormat = Literal["concise", "detailed"]
 
@@ -41,6 +51,66 @@ def release_card(release: Release, response_format: ResponseFormat = "concise") 
         lines += ["", *_identifiers(release), "", *_notes(release.notes)]
     lines += ["", attribution(release.uri or f"https://www.discogs.com/release/{release.id}")]
     return "\n".join(lines)
+
+
+def search_page(
+    found: SearchPage,
+    search_type: SearchType,
+    query: str,
+    filters: Mapping[str, str | int],
+) -> str:
+    """One page of catalog search results, numbered across pages, with a next-page hint."""
+    pagination = found.pagination
+    heading = _search_heading(search_type, query, filters)
+    footer = ["", attribution(_search_url(search_type, query))]
+    if pagination.items == 0:
+        return "\n".join(
+            [f"{heading}: nothing found. Try a broader query or fewer filters.", *footer]
+        )
+    first = (pagination.page - 1) * pagination.per_page + 1
+    last = first + len(found.results) - 1
+    hint = f"Showing {first}–{last} of {pagination.items}."
+    if pagination.page < pagination.pages:
+        hint += f" Use page={pagination.page + 1} for more."
+    lines = [
+        f"{heading}: page {pagination.page} of {pagination.pages} ({pagination.items} results)",
+        *(
+            f"{number}. {_search_result(result, search_type)}"
+            for number, result in enumerate(found.results, start=first)
+        ),
+        "",
+        hint,
+        *footer,
+    ]
+    return "\n".join(lines)
+
+
+def _search_heading(search_type: SearchType, query: str, filters: Mapping[str, str | int]) -> str:
+    parts = [f'{search_type}s matching "{query}"' if query else f"{search_type}s"]
+    parts += [f"{name}={value}" for name, value in filters.items()]
+    return "Discogs search, " + ", ".join(parts)
+
+
+def _search_result(result: SearchResult, search_type: SearchType) -> str:
+    if search_type in ("artist", "label"):
+        return f"{result.title} [{search_type}_id={result.id}]"
+    formats = ", ".join(dict.fromkeys(result.format))
+    # The first label is the Release's own; the rest are companies (distributors, plants).
+    label = result.label[0] if result.label else ""
+    if search_type == "master":
+        details = [result.year, label, formats]
+        ids = f"master_id={result.id}"
+    else:
+        label_catno = " – ".join(filter(None, [label, result.catno]))
+        details = [result.year, result.country, label_catno, formats]
+        ids = f"release_id={result.id}" + (
+            f", master_id={result.master_id}" if result.master_id else ""
+        )
+    return " · ".join([result.title, *filter(None, details)]) + f" [{ids}]"
+
+
+def _search_url(search_type: SearchType, query: str) -> str:
+    return "https://www.discogs.com/search/?" + urlencode({"q": query, "type": search_type})
 
 
 def _artist_credit(artists: list[Artist]) -> str:

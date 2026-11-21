@@ -17,10 +17,11 @@ from cratedigger_mcp.discogs import (
     DiscogsClient,
     DiscogsError,
     NotFoundError,
+    SearchType,
     UnauthorizedError,
     build_http_client,
 )
-from cratedigger_mcp.formatting import ResponseFormat, release_card
+from cratedigger_mcp.formatting import ResponseFormat, release_card, search_page
 from cratedigger_mcp.settings import Settings
 
 INSTRUCTIONS = """\
@@ -104,7 +105,120 @@ def create_server(
             raise ToolError(str(error)) from None
         return release_card(release, response_format)
 
+    @mcp.tool(title="Search Discogs Catalog", annotations=READ_ONLY, output_schema=None)
+    async def discogs_search(
+        ctx: Context,
+        query: Annotated[
+            str,
+            Field(description="Free text: artist, title, label or any mix, e.g. 'Kind of Blue'."),
+        ] = "",
+        type: Annotated[
+            SearchType,
+            Field(
+                description="What to find: release (default, a specific pressing), master "
+                "(the album as a whole), artist or label."
+            ),
+        ] = "release",
+        artist: Annotated[str | None, Field(description="Only this artist.")] = None,
+        year: Annotated[int | None, Field(description="Only this release year.", gt=0)] = None,
+        format: Annotated[
+            str | None, Field(description="Only this Format, e.g. Vinyl, CD, Cassette, LP.")
+        ] = None,
+        country: Annotated[
+            str | None, Field(description="Only Releases from this country, e.g. UK, Japan.")
+        ] = None,
+        catno: Annotated[
+            str | None, Field(description="Catalog number as printed, e.g. PB 41447.")
+        ] = None,
+        barcode: Annotated[
+            str | None,
+            Field(
+                description="Barcode digits, or other identifier text such as a matrix/runout "
+                "etching: Discogs matches it against every identifier of a Release."
+            ),
+        ] = None,
+        limit: Annotated[int, Field(description="Results per page.", ge=1, le=50)] = 10,
+        page: Annotated[int, Field(description="Page of results, from 1.", ge=1)] = 1,
+    ) -> str:
+        """Search the Discogs catalog for Releases (pressings), Masters, artists or labels.
+
+        Use it to find a release_id or master_id by name, or to find the exact pressing the
+        Owner is holding by narrowing with artist, year, Format, country, catalog number or
+        barcode. Each result carries the release_id/master_id for discogs_get_release and the
+        other tools. Results are paged: the response states the page and the total.
+        Do not use it to check what the Owner has or wants: use discogs_list_collection or
+        discogs_list_wantlist, and discogs_match_collection for a list of albums.
+        """
+        filters = {
+            name: value
+            for name, value in {
+                "artist": artist,
+                "year": year,
+                "format": format,
+                "country": country,
+                "catno": catno,
+                "barcode": barcode,
+            }.items()
+            if value is not None and value != ""
+        }
+        query = query.strip()
+        if not query and not filters:
+            raise ToolError(
+                "Give a query or at least one filter (artist, year, format, country, catno, "
+                "barcode) to search Discogs."
+            )
+        params = {"q": query, **filters} if query else filters
+        try:
+            found = await discogs_client(ctx).search(type, params, per_page=limit, page=page)
+        except NotFoundError:  # Discogs answers 404 for a page past the last one
+            return (
+                f"No results on page {page}: this search has fewer pages. "
+                "Use a lower page, starting from page=1."
+            )
+        except UnauthorizedError:
+            raise ToolError(TOKEN_HINT) from None
+        except DiscogsError as error:
+            raise ToolError(str(error)) from None
+        return search_page(found, type, query, filters)
+
+    @mcp.prompt(title="Identify a Discogs Release")
+    def identify_release(
+        description: Annotated[
+            str,
+            Field(
+                description="What the Owner sees on the record: artist, title, label, "
+                "catalog number, barcode, matrix/runout etchings, sleeve details."
+            ),
+        ],
+    ) -> str:
+        """Find out which Discogs Release (pressing) the Owner is holding."""
+        return IDENTIFY_RELEASE.format(description=description)
+
     return mcp
+
+
+IDENTIFY_RELEASE = """\
+Help me identify exactly which Discogs Release (pressing) I am holding, so that I can add the \
+right one to Discogs. Here is what I can see on it:
+
+{description}
+
+Work through the strongest identifiers first, using discogs_search with type="release":
+1. If there is a barcode, search with the barcode filter. Discogs matches it against every \
+identifier of a Release, so matrix/runout text works in that filter too.
+2. Otherwise search with the catalog number (catno filter) together with the artist, and \
+narrow with year, format and country when the results are too many.
+3. If neither is known, search by artist and title and narrow with the filters.
+
+When a few candidates remain, open each with discogs_get_release with \
+response_format="detailed" and compare its matrix/runout etchings, barcode, label, country \
+and notes with what I described. Ask me to read specific details off the record (for example \
+the runout etching on side A, or the text around the label rim) whenever that would tell the \
+candidates apart. Don't guess: if two Releases still fit, say so and name what would separate \
+them.
+
+Finish with the release_id you are confident about, a one-line summary of the Release, and \
+why it matches."""
 
 
 MISSING_TOKEN = (

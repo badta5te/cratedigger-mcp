@@ -30,9 +30,32 @@ async def test_tool_catalog_matches_the_contract(client: Client[Any]) -> None:
                 "read_only": True,
                 "destructive": None,
                 "open_world": True,
-            }
+            },
+            {
+                "name": "discogs_search",
+                "title": "Search Discogs Catalog",
+                "read_only": True,
+                "destructive": None,
+                "open_world": True,
+            },
         ]
     )
+
+
+async def test_prompt_catalog_matches_the_contract(client: Client[Any]) -> None:
+    prompts = await client.list_prompts()
+
+    assert [(prompt.name, prompt.title) for prompt in prompts] == snapshot(
+        [("identify_release", "Identify a Discogs Release")]
+    )
+
+
+async def test_search_description_points_to_the_owner_tools(client: Client[Any]) -> None:
+    tools = {tool.name: tool for tool in await client.list_tools()}
+
+    description = tools["discogs_search"].description or ""
+    for other in ("discogs_list_collection", "discogs_list_wantlist", "discogs_match_collection"):
+        assert other in description
 
 
 async def test_every_tool_explains_itself(client: Client[Any]) -> None:

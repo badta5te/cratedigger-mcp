@@ -8,7 +8,9 @@ instead of raw JSON.
 
 import asyncio
 import logging
+from collections.abc import Mapping
 from datetime import datetime
+from typing import Literal
 
 import httpx2
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
@@ -108,6 +110,38 @@ class Release(_Model):
     uri: str = ""
 
 
+SearchType = Literal["release", "master", "artist", "label"]
+
+
+class SearchResult(_Model):
+    """One catalog search hit. Artists and labels carry only an id, a title and a uri."""
+
+    model_config = ConfigDict(coerce_numbers_to_str=True)
+
+    id: int
+    type: str
+    title: str = ""
+    year: str = ""  # Discogs sends the year as a string
+    country: str = ""
+    format: list[str] = Field(default_factory=list)
+    label: list[str] = Field(default_factory=list)
+    catno: str = ""
+    master_id: int | None = None
+    uri: str = ""
+
+
+class Pagination(_Model):
+    page: int
+    pages: int
+    per_page: int
+    items: int
+
+
+class SearchPage(_Model):
+    pagination: Pagination
+    results: list[SearchResult] = Field(default_factory=list)
+
+
 class _Pacer:
     """Slows requests down when the X-Discogs-Ratelimit-* headers report little quota left.
 
@@ -188,13 +222,22 @@ class DiscogsClient:
     async def get_release(self, release_id: int) -> Release:
         return await self._get(f"/releases/{release_id}", Release)
 
-    async def _get[M: BaseModel](self, path: str, model: type[M]) -> M:
-        response = await self._send(path)
+    async def search(
+        self, search_type: SearchType, filters: Mapping[str, str | int], per_page: int, page: int
+    ) -> SearchPage:
+        """One page of catalog search results. `filters` are Discogs search parameters."""
+        params = {**filters, "type": search_type, "per_page": per_page, "page": page}
+        return await self._get("/database/search", SearchPage, params)
+
+    async def _get[M: BaseModel](
+        self, path: str, model: type[M], params: Mapping[str, str | int] | None = None
+    ) -> M:
+        response = await self._send(path, params)
         for delay in RETRY_DELAYS_SECONDS:
             if response.status_code != 429:
                 break
             await self._clock.sleep(delay)
-            response = await self._send(path)
+            response = await self._send(path, params)
         if response.status_code == 429:
             raise RateLimitedError(
                 "Discogs is rate-limiting requests (HTTP 429). Try again in a minute."
@@ -215,10 +258,10 @@ class DiscogsClient:
                 f"Discogs sent an unexpected response for {path}. Try again later."
             ) from None
 
-    async def _send(self, path: str) -> httpx2.Response:
+    async def _send(self, path: str, params: Mapping[str, str | int] | None) -> httpx2.Response:
         await self._pacer.wait_turn()
         try:
-            response = await self._http.get(path)
+            response = await self._http.get(path, params=params)
         except httpx2.RequestError as error:
             raise DiscogsError(
                 f"Could not reach Discogs ({type(error).__name__}). Try again in a moment."

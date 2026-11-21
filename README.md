@@ -9,9 +9,17 @@ stores nothing on disk.
 
 > **Status:** early development. Available tools so far:
 >
+> - `discogs_search`: search the catalog for Releases (default), Masters, artists or labels by
+>   free text, narrowed by artist, year, Format, country, catalog number or barcode. Results are
+>   paged and carry the `release_id`/`master_id` for the next call.
 > - `discogs_get_release`: the card of one Release by `release_id`: label, catalog number, Format,
 >   country, year, tracklist, have/want counts and Master. Its detailed form adds identifiers
 >   (matrix/runout, barcode) and release notes.
+>
+> And one prompt:
+>
+> - `identify_release`: guides Claude through finding the exact Release you hold from its
+>   barcode, catalog number and matrix/runout etchings.
 
 ## Requirements
 

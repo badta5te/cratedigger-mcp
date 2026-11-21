@@ -1,0 +1,236 @@
+{
+  "pagination": {
+    "page": 1,
+    "pages": 3032,
+    "per_page": 3,
+    "items": 9096,
+    "urls": {
+      "last": "https://api.discogs.com/database/search?q=Never+Gonna+Give+You+Up&type=release&per_page=3&page=3032",
+      "next": "https://api.discogs.com/database/search?q=Never+Gonna+Give+You+Up&type=release&per_page=3&page=2"
+    }
+  },
+  "results": [
+    {
+      "country": "Europe",
+      "year": "1987",
+      "format": [
+        "Vinyl",
+        "12\"",
+        "45 RPM",
+        "Maxi-Single",
+        "Stereo"
+      ],
+      "label": [
+        "RCA",
+        "RCA",
+        "RCA",
+        "RCA Corporation",
+        "Bertelsmann Music Group",
+        "BMG Records (UK) Ltd.",
+        "BMG Records",
+        "BMG Records (UK) Ltd.",
+        "All Boys Music Ltd.",
+        "RCA Records",
+        "BMG Records",
+        "BMG Ariola",
+        "Sonopress"
+      ],
+      "type": "release",
+      "genre": [
+        "Electronic",
+        "Pop"
+      ],
+      "style": [
+        "Dance-pop",
+        "Synth-pop",
+        "Hi NRG"
+      ],
+      "id": 995860,
+      "barcode": [
+        "012394 144869",
+        "5012394144869",
+        "BIEM GEMA",
+        "LC 0316",
+        "AF",
+        "RC120",
+        "BB",
+        "DM B-9148 A-1/8-87",
+        "DM B-9148 B-1/8-87",
+        "DM B-9148 A-1/8-87 II",
+        "DM B-9148 B-1/8-87",
+        "DM B-9148 A-1/8-87 II",
+        "DM B-9148 B-1/8-87 II",
+        "DM B-9148 A-1/8-87 III",
+        "DM B-9148 B-1/8-87"
+      ],
+      "master_id": 96559,
+      "master_url": "https://api.discogs.com/masters/96559",
+      "uri": "/release/995860-Rick-Astley-Never-Gonna-Give-You-Up",
+      "catno": "PT 41 448",
+      "title": "Rick Astley - Never Gonna Give You Up",
+      "thumb": "",
+      "cover_image": "",
+      "resource_url": "https://api.discogs.com/releases/995860",
+      "community": {
+        "want": 536,
+        "have": 4546
+      },
+      "format_quantity": 1,
+      "formats": [
+        {
+          "name": "Vinyl",
+          "qty": "1",
+          "descriptions": [
+            "12\"",
+            "45 RPM",
+            "Maxi-Single",
+            "Stereo"
+          ]
+        }
+      ]
+    },
+    {
+      "country": "UK",
+      "year": "1987",
+      "format": [
+        "Vinyl",
+        "7\"",
+        "45 RPM",
+        "Single",
+        "Stereo"
+      ],
+      "label": [
+        "RCA",
+        "BMG Records (UK) Ltd.",
+        "BMG Records (UK) Ltd.",
+        "Pete Waterman Ltd.",
+        "All Boys Music Ltd.",
+        "BMG Records",
+        "BMG Ariola",
+        "RCA Records",
+        "Utopia Studios",
+        "BMG Records (UK) Ltd.",
+        "PWL",
+        "CBS Pressing Plant, Aston Clinton"
+      ],
+      "type": "release",
+      "genre": [
+        "Electronic",
+        "Pop"
+      ],
+      "style": [
+        "Euro-Disco"
+      ],
+      "id": 249504,
+      "barcode": [
+        "5012394144777",
+        "LC 0316",
+        "AC",
+        "RC110",
+        "AA",
+        "PB 41447 A‡",
+        "PB 41447 B‡",
+        "PB 41447 A2 UTOPIA MS",
+        "PB 41447-B.2 UTOPIA MS",
+        "PB 41447 A4 UTOPIA MS.",
+        "PB 41447 B4 UTOPIA MS ♥ RD.",
+        "PB 41447 A2 UTOPIA MS B",
+        "PB 41447-B.2 B UTOPIA MS"
+      ],
+      "master_id": 96559,
+      "master_url": "https://api.discogs.com/masters/96559",
+      "uri": "/release/249504-Rick-Astley-Never-Gonna-Give-You-Up",
+      "catno": "PB 41447",
+      "title": "Rick Astley - Never Gonna Give You Up",
+      "thumb": "",
+      "cover_image": "",
+      "resource_url": "https://api.discogs.com/releases/249504",
+      "community": {
+        "want": 597,
+        "have": 4189
+      },
+      "format_quantity": 1,
+      "formats": [
+        {
+          "name": "Vinyl",
+          "qty": "1",
+          "text": "CBS Pressing",
+          "descriptions": [
+            "7\"",
+            "45 RPM",
+            "Single",
+            "Stereo"
+          ]
+        }
+      ]
+    },
+    {
+      "country": "UK",
+      "year": "1987",
+      "format": [
+        "Vinyl",
+        "12\"",
+        "45 RPM",
+        "Single"
+      ],
+      "label": [
+        "RCA",
+        "RCA Records",
+        "BMG Records",
+        "BMG Ariola",
+        "BMG Records (UK) Ltd.",
+        "Pete Waterman Ltd.",
+        "BMG Records (UK) Ltd.",
+        "All Boys Music Ltd.",
+        "Utopia Studios",
+        "Damont",
+        "Lyntone Recordings Ltd.",
+        "Lyntone Recordings Ltd."
+      ],
+      "type": "release",
+      "genre": [
+        "Electronic",
+        "Pop"
+      ],
+      "style": [
+        "Synth-pop"
+      ],
+      "id": 221824,
+      "barcode": [
+        "012394 144869",
+        "5012394144869",
+        "LC 0316",
+        "AF",
+        "RC120",
+        "BB",
+        "PT 41448 A3 L 19090 [Lyra logo]TOPIA. M.S. DAMONT",
+        "PT 41448 B2 L 19091 [Lyra logo]TOPIA DAMONT"
+      ],
+      "master_id": 96559,
+      "master_url": "https://api.discogs.com/masters/96559",
+      "uri": "/release/221824-Rick-Astley-Never-Gonna-Give-You-Up",
+      "catno": "PT 41448",
+      "title": "Rick Astley - Never Gonna Give You Up",
+      "thumb": "",
+      "cover_image": "",
+      "resource_url": "https://api.discogs.com/releases/221824",
+      "community": {
+        "want": 527,
+        "have": 3266
+      },
+      "format_quantity": 1,
+      "formats": [
+        {
+          "name": "Vinyl",
+          "qty": "1",
+          "text": "Lyntone/Damont",
+          "descriptions": [
+            "12\"",
+            "45 RPM",
+            "Single"
+          ]
+        }
+      ]
+    }
+  ]
+}

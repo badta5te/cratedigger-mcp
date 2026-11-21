@@ -1,0 +1,47 @@
+{
+  "pagination": {
+    "page": 1,
+    "pages": 3,
+    "per_page": 3,
+    "items": 8,
+    "urls": {
+      "last": "https://api.discogs.com/database/search?q=Never+Gonna+Give+You+Up&type=artist&per_page=3&page=3",
+      "next": "https://api.discogs.com/database/search?q=Never+Gonna+Give+You+Up&type=artist&per_page=3&page=2"
+    }
+  },
+  "results": [
+    {
+      "id": 72872,
+      "type": "artist",
+      "master_id": null,
+      "master_url": null,
+      "uri": "/artist/72872-Rick-Astley",
+      "title": "Rick Astley",
+      "thumb": "",
+      "cover_image": "",
+      "resource_url": "https://api.discogs.com/artists/72872"
+    },
+    {
+      "id": 1146552,
+      "type": "artist",
+      "master_id": null,
+      "master_url": null,
+      "uri": "/artist/1146552-FKW-2",
+      "title": "FKW (2)",
+      "thumb": "",
+      "cover_image": "",
+      "resource_url": "https://api.discogs.com/artists/1146552"
+    },
+    {
+      "id": 1034987,
+      "type": "artist",
+      "master_id": null,
+      "master_url": null,
+      "uri": "/artist/1034987-The-Festivals",
+      "title": "The Festivals",
+      "thumb": "",
+      "cover_image": "",
+      "resource_url": "https://api.discogs.com/artists/1034987"
+    }
+  ]
+}

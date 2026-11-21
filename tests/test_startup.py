@@ -67,4 +67,5 @@ async def test_server_speaks_mcp_over_stdio(tmp_path: Path) -> None:
     async with Client(transport) as client:
         tools = await client.list_tools()
 
-    assert [tool.name for tool in tools] == ["discogs_get_release"]
+    # The full catalog is pinned in test_tool_catalog; here it is enough that tools are served.
+    assert "discogs_get_release" in {tool.name for tool in tools}

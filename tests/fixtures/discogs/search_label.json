@@ -1,0 +1,47 @@
+{
+  "pagination": {
+    "page": 1,
+    "pages": 589,
+    "per_page": 3,
+    "items": 1767,
+    "urls": {
+      "last": "https://api.discogs.com/database/search?q=RCA&type=label&per_page=3&page=589",
+      "next": "https://api.discogs.com/database/search?q=RCA&type=label&per_page=3&page=2"
+    }
+  },
+  "results": [
+    {
+      "id": 895,
+      "type": "label",
+      "master_id": null,
+      "master_url": null,
+      "uri": "/label/895-RCA",
+      "title": "RCA",
+      "thumb": "",
+      "cover_image": "",
+      "resource_url": "https://api.discogs.com/labels/895"
+    },
+    {
+      "id": 11358,
+      "type": "label",
+      "master_id": null,
+      "master_url": null,
+      "uri": "/label/11358-RCA-Victor",
+      "title": "RCA Victor",
+      "thumb": "",
+      "cover_image": "",
+      "resource_url": "https://api.discogs.com/labels/11358"
+    },
+    {
+      "id": 29656,
+      "type": "label",
+      "master_id": null,
+      "master_url": null,
+      "uri": "/label/29656-RCA-Records",
+      "title": "RCA Records",
+      "thumb": "",
+      "cover_image": "",
+      "resource_url": "https://api.discogs.com/labels/29656"
+    }
+  ]
+}

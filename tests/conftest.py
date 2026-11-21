@@ -1,7 +1,9 @@
 """Shared test harness: a fake Discogs behind an HTTP mock transport and an in-memory MCP client."""
 
 import asyncio
+import copy
 import json
+import math
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -59,6 +61,11 @@ class FakeDiscogs:
         self.releases: dict[int, Any] = {
             249504: load_fixture("release_249504.json"),
             1621435: load_fixture("release_1621435.json"),
+        }
+        # Search pages by `type`, as captured; the fake fits `pagination` to the requested page.
+        self.searches: dict[str, Any] = {
+            kind: load_fixture(f"search_{kind}.json")
+            for kind in ("release", "master", "artist", "label")
         }
         self.reject_token = False
         self.failing_status: int | None = None
@@ -127,9 +134,31 @@ class FakeDiscogs:
                     404, headers=headers, json=load_fixture("error_404_release.json")
                 )
             return httpx2.Response(200, headers=headers, json=release)
+        if parts == ["database", "search"]:
+            return self._search(request, headers)
         return httpx2.Response(
             404, headers=headers, json={"message": "The requested resource was not found."}
         )
+
+    def _search(self, request: httpx2.Request, headers: dict[str, str]) -> httpx2.Response:
+        """Serve the captured page for the `type`, numbered as the requested page.
+
+        Like Discogs, a page past the last one is HTTP 404.
+        """
+        params = request.url.params
+        found = copy.deepcopy(self.searches[params.get("type", "release")])
+        pagination = found["pagination"]
+        page = int(params.get("page", "1"))
+        per_page = int(params.get("per_page", "50"))
+        pages = max(1, math.ceil(pagination["items"] / per_page))
+        if page > pages:
+            return httpx2.Response(
+                404,
+                headers=headers,
+                json={"message": f"Page {page} is outside of valid range [1, {pages}]."},
+            )
+        pagination.update(page=page, per_page=per_page, pages=pages)
+        return httpx2.Response(200, headers=headers, json=found)
 
 
 @pytest.fixture

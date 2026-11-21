@@ -1,0 +1,154 @@
+{
+  "pagination": {
+    "page": 1,
+    "pages": 383,
+    "per_page": 3,
+    "items": 1149,
+    "urls": {
+      "last": "https://api.discogs.com/database/search?q=Never+Gonna+Give+You+Up&type=master&per_page=3&page=383",
+      "next": "https://api.discogs.com/database/search?q=Never+Gonna+Give+You+Up&type=master&per_page=3&page=2"
+    }
+  },
+  "results": [
+    {
+      "country": "UK",
+      "year": "1987",
+      "format": [
+        "Vinyl",
+        "12\"",
+        "45 RPM",
+        "Single"
+      ],
+      "label": [
+        "RCA",
+        "RCA Records",
+        "BMG Records",
+        "BMG Ariola",
+        "BMG Records (UK) Ltd.",
+        "Pete Waterman Ltd.",
+        "BMG Records (UK) Ltd.",
+        "All Boys Music Ltd.",
+        "Utopia Studios",
+        "Damont",
+        "Lyntone Recordings Ltd.",
+        "Lyntone Recordings Ltd."
+      ],
+      "type": "master",
+      "genre": [
+        "Electronic",
+        "Pop"
+      ],
+      "style": [
+        "Synth-pop"
+      ],
+      "id": 96559,
+      "barcode": [
+        "012394 144869",
+        "5012394144869",
+        "LC 0316",
+        "AF",
+        "RC120",
+        "BB",
+        "PT 41448 A3 L 19090 [Lyra logo]TOPIA. M.S. DAMONT",
+        "PT 41448 B2 L 19091 [Lyra logo]TOPIA DAMONT"
+      ],
+      "master_id": 96559,
+      "master_url": "https://api.discogs.com/masters/96559",
+      "uri": "/master/96559-Rick-Astley-Never-Gonna-Give-You-Up",
+      "catno": "PT 41448",
+      "title": "Rick Astley - Never Gonna Give You Up",
+      "thumb": "",
+      "cover_image": "",
+      "resource_url": "https://api.discogs.com/masters/96559",
+      "community": {
+        "want": 11168,
+        "have": 30292
+      }
+    },
+    {
+      "country": "UK",
+      "year": "1997",
+      "format": [
+        "Vinyl",
+        "12\""
+      ],
+      "label": [
+        "Arista"
+      ],
+      "type": "master",
+      "genre": [
+        "Electronic"
+      ],
+      "style": [
+        "House"
+      ],
+      "id": 106651,
+      "barcode": [
+        "7 43214 90391 9"
+      ],
+      "master_id": 106651,
+      "master_url": "https://api.discogs.com/masters/106651",
+      "uri": "/master/106651-Lisa-Stansfield-Never-Never-Gonna-Give-You-Up",
+      "catno": "74321490391",
+      "title": "Lisa Stansfield - Never, Never Gonna Give You Up",
+      "thumb": "",
+      "cover_image": "",
+      "resource_url": "https://api.discogs.com/masters/106651",
+      "community": {
+        "want": 804,
+        "have": 2079
+      }
+    },
+    {
+      "country": "France",
+      "year": "1983",
+      "format": [
+        "Vinyl",
+        "7\"",
+        "45 RPM",
+        "Single",
+        "Stereo"
+      ],
+      "label": [
+        "MCA Records",
+        "Arabella Eurodisc",
+        "Loose End Productions",
+        "MCA Records Ltd.",
+        "Virgin Music (Publishers) Ltd.",
+        "Virgin Music Ltd.",
+        "Cherry Music Ltd.",
+        "Sonopress"
+      ],
+      "type": "master",
+      "genre": [
+        "Reggae"
+      ],
+      "style": [
+        "Dub"
+      ],
+      "id": 101221,
+      "barcode": [
+        "SACEM SACD SDRM SGDL",
+        "AE 140",
+        "S 105 182 A",
+        "S 105 182 B",
+        "F 105182 A-1/83S I II Made in Germany",
+        "F 105182 B-1/83S I III Made in Germany",
+        "F 105182 A-1/83S I III Made in Germany",
+        "F 105182 B-1/83S I III Made in Germany"
+      ],
+      "master_id": 101221,
+      "master_url": "https://api.discogs.com/masters/101221",
+      "uri": "/master/101221-Musical-Youth-Never-Gonna-Give-You-Up",
+      "catno": "105 182",
+      "title": "Musical Youth - Never Gonna Give You Up",
+      "thumb": "",
+      "cover_image": "",
+      "resource_url": "https://api.discogs.com/masters/101221",
+      "community": {
+        "want": 494,
+        "have": 2712
+      }
+    }
+  ]
+}
