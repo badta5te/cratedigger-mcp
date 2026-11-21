@@ -4,13 +4,13 @@ Every card carries the IDs for the next call and ends with the Discogs attributi
 """
 
 import re
-from collections.abc import Mapping
 from typing import Literal
 from urllib.parse import urlencode
 
 from cratedigger_mcp.discogs import (
     Artist,
     Format,
+    QueryParams,
     Release,
     SearchPage,
     SearchResult,
@@ -53,11 +53,11 @@ def release_card(release: Release, response_format: ResponseFormat = "concise") 
     return "\n".join(lines)
 
 
-def search_page(
+def search_results(
     found: SearchPage,
     search_type: SearchType,
     query: str,
-    filters: Mapping[str, str | int],
+    filters: QueryParams,
 ) -> str:
     """One page of catalog search results, numbered across pages, with a next-page hint."""
     pagination = found.pagination
@@ -85,7 +85,7 @@ def search_page(
     return "\n".join(lines)
 
 
-def _search_heading(search_type: SearchType, query: str, filters: Mapping[str, str | int]) -> str:
+def _search_heading(search_type: SearchType, query: str, filters: QueryParams) -> str:
     parts = [f'{search_type}s matching "{query}"' if query else f"{search_type}s"]
     parts += [f"{name}={value}" for name, value in filters.items()]
     return "Discogs search, " + ", ".join(parts)

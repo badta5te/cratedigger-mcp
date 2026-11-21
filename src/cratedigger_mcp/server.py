@@ -21,7 +21,7 @@ from cratedigger_mcp.discogs import (
     UnauthorizedError,
     build_http_client,
 )
-from cratedigger_mcp.formatting import ResponseFormat, release_card, search_page
+from cratedigger_mcp.formatting import ResponseFormat, release_card, search_results
 from cratedigger_mcp.settings import Settings
 
 INSTRUCTIONS = """\
@@ -40,6 +40,36 @@ TOKEN_HINT = (
     "configuration: it must be a valid personal access token from "
     "https://www.discogs.com/settings/developers."
 )
+
+IDENTIFY_RELEASE = """\
+Help me identify exactly which Discogs Release I am holding, so that I can add the \
+right one to Discogs. Here is what I can see on it:
+
+{description}
+
+Work through the strongest identifiers first, using discogs_search with type="release":
+1. If there is a barcode, search with the barcode filter. Discogs matches it against every \
+identifier of a Release, so matrix/runout text works in that filter too.
+2. Otherwise search with the catalog number (catno filter) together with the artist, and \
+narrow with year, format and country when the results are too many.
+3. If neither is known, search by artist and title and narrow with the filters.
+
+When a few candidates remain, open each with discogs_get_release with \
+response_format="detailed" and compare its matrix/runout etchings, barcode, label, country \
+and notes with what I described. Ask me to read specific details off the record (for example \
+the runout etching on side A, or the text around the label rim) whenever that would tell the \
+candidates apart. Don't guess: if two Releases still fit, say so and name what would separate \
+them.
+
+Finish with the release_id you are confident about, a one-line summary of the Release, and \
+why it matches."""
+
+
+def tool_error(error: DiscogsError) -> ToolError:
+    """The tool error Claude sees for a Discogs failure, with the next step to take."""
+    if isinstance(error, UnauthorizedError):
+        return ToolError(TOKEN_HINT)
+    return ToolError(str(error))
 
 
 def create_server(
@@ -99,10 +129,8 @@ def create_server(
                 f"Release {release_id} not found on Discogs. "
                 "Use discogs_search to find the release_id."
             ) from None
-        except UnauthorizedError:
-            raise ToolError(TOKEN_HINT) from None
         except DiscogsError as error:
-            raise ToolError(str(error)) from None
+            raise tool_error(error) from None
         return release_card(release, response_format)
 
     @mcp.tool(title="Search Discogs Catalog", annotations=READ_ONLY, output_schema=None)
@@ -116,7 +144,8 @@ def create_server(
             SearchType,
             Field(
                 description="What to find: release (default, a specific pressing), master "
-                "(the album as a whole), artist or label."
+                "(the album as a whole), artist or label. The filters apply to release and "
+                "master searches only."
             ),
         ] = "release",
         artist: Annotated[str | None, Field(description="Only this artist.")] = None,
@@ -167,19 +196,25 @@ def create_server(
                 "Give a query or at least one filter (artist, year, format, country, catno, "
                 "barcode) to search Discogs."
             )
+        if filters and type in ("artist", "label"):
+            raise ToolError(
+                "The filters artist, year, format, country, catno and barcode apply to release "
+                f"and master searches only. Search {type}s by query alone."
+            )
         params = {"q": query, **filters} if query else filters
         try:
             found = await discogs_client(ctx).search(type, params, per_page=limit, page=page)
-        except NotFoundError:  # Discogs answers 404 for a page past the last one
+        except NotFoundError as error:
+            if page == 1:
+                raise tool_error(error) from None
+            # Discogs answers 404 for a page past the last one or past its 10,000-result depth.
             return (
-                f"No results on page {page}: this search has fewer pages. "
-                "Use a lower page, starting from page=1."
+                f"No results on page {page}: it is past the last page of this search, or beyond "
+                "the first 10,000 results Discogs serves. Use a lower page or narrow the search."
             )
-        except UnauthorizedError:
-            raise ToolError(TOKEN_HINT) from None
         except DiscogsError as error:
-            raise ToolError(str(error)) from None
-        return search_page(found, type, query, filters)
+            raise tool_error(error) from None
+        return search_results(found, type, query, filters)
 
     @mcp.prompt(title="Identify a Discogs Release")
     def identify_release(
@@ -195,30 +230,6 @@ def create_server(
         return IDENTIFY_RELEASE.format(description=description)
 
     return mcp
-
-
-IDENTIFY_RELEASE = """\
-Help me identify exactly which Discogs Release (pressing) I am holding, so that I can add the \
-right one to Discogs. Here is what I can see on it:
-
-{description}
-
-Work through the strongest identifiers first, using discogs_search with type="release":
-1. If there is a barcode, search with the barcode filter. Discogs matches it against every \
-identifier of a Release, so matrix/runout text works in that filter too.
-2. Otherwise search with the catalog number (catno filter) together with the artist, and \
-narrow with year, format and country when the results are too many.
-3. If neither is known, search by artist and title and narrow with the filters.
-
-When a few candidates remain, open each with discogs_get_release with \
-response_format="detailed" and compare its matrix/runout etchings, barcode, label, country \
-and notes with what I described. Ask me to read specific details off the record (for example \
-the runout etching on side A, or the text around the label rim) whenever that would tell the \
-candidates apart. Don't guess: if two Releases still fit, say so and name what would separate \
-them.
-
-Finish with the release_id you are confident about, a one-line summary of the Release, and \
-why it matches."""
 
 
 MISSING_TOKEN = (

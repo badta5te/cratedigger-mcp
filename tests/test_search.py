@@ -115,7 +115,8 @@ async def test_page_past_the_end_is_an_answer_not_an_error(client: Client[Any]) 
     text = await search(client, query="Never Gonna Give You Up", type="artist", page=2)
 
     assert text == (
-        "No results on page 2: this search has fewer pages. Use a lower page, starting from page=1."
+        "No results on page 2: it is past the last page of this search, or beyond the first "
+        "10,000 results Discogs serves. Use a lower page or narrow the search."
     )
 
 
@@ -207,3 +208,29 @@ async def test_discogs_failure_during_search_is_a_tool_error(
 
     assert is_error
     assert text == "Discogs answered HTTP 502 for /database/search. Try again later."
+
+
+async def test_not_found_on_the_first_page_is_a_tool_error(
+    client: Client[Any], discogs: FakeDiscogs
+) -> None:
+    discogs.failing_status = 404
+
+    is_error, text = await call_tool_text(client, "discogs_search", {"query": "x"})
+
+    assert is_error
+    assert "past the last page" not in text
+
+
+async def test_release_filters_are_rejected_for_artist_and_label_searches(
+    client: Client[Any], discogs: FakeDiscogs
+) -> None:
+    is_error, text = await call_tool_text(
+        client, "discogs_search", {"query": "RCA", "type": "label", "year": 1987}
+    )
+
+    assert is_error
+    assert text == (
+        "The filters artist, year, format, country, catno and barcode apply to release and "
+        "master searches only. Search labels by query alone."
+    )
+    assert discogs.requests == []

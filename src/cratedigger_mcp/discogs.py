@@ -111,15 +111,16 @@ class Release(_Model):
 
 
 SearchType = Literal["release", "master", "artist", "label"]
+# Query-string parameters of a Discogs request, such as q, artist, year or page.
+QueryParams = Mapping[str, str | int]
 
 
 class SearchResult(_Model):
-    """One catalog search hit. Artists and labels carry only an id, a title and a uri."""
+    """One catalog search hit. Artists and labels carry only an id and a title."""
 
     model_config = ConfigDict(coerce_numbers_to_str=True)
 
     id: int
-    type: str
     title: str = ""
     year: str = ""  # Discogs sends the year as a string
     country: str = ""
@@ -127,7 +128,6 @@ class SearchResult(_Model):
     label: list[str] = Field(default_factory=list)
     catno: str = ""
     master_id: int | None = None
-    uri: str = ""
 
 
 class Pagination(_Model):
@@ -223,14 +223,14 @@ class DiscogsClient:
         return await self._get(f"/releases/{release_id}", Release)
 
     async def search(
-        self, search_type: SearchType, filters: Mapping[str, str | int], per_page: int, page: int
+        self, search_type: SearchType, params: QueryParams, per_page: int, page: int
     ) -> SearchPage:
-        """One page of catalog search results. `filters` are Discogs search parameters."""
-        params = {**filters, "type": search_type, "per_page": per_page, "page": page}
-        return await self._get("/database/search", SearchPage, params)
+        """One page of catalog search results."""
+        paged = {**params, "type": search_type, "per_page": per_page, "page": page}
+        return await self._get("/database/search", SearchPage, paged)
 
     async def _get[M: BaseModel](
-        self, path: str, model: type[M], params: Mapping[str, str | int] | None = None
+        self, path: str, model: type[M], params: QueryParams | None = None
     ) -> M:
         response = await self._send(path, params)
         for delay in RETRY_DELAYS_SECONDS:
@@ -258,7 +258,7 @@ class DiscogsClient:
                 f"Discogs sent an unexpected response for {path}. Try again later."
             ) from None
 
-    async def _send(self, path: str, params: Mapping[str, str | int] | None) -> httpx2.Response:
+    async def _send(self, path: str, params: QueryParams | None) -> httpx2.Response:
         await self._pacer.wait_turn()
         try:
             response = await self._http.get(path, params=params)
