@@ -1,0 +1,210 @@
+{
+  "pagination": {
+    "page": 1,
+    "pages": 3,
+    "per_page": 3,
+    "items": 7,
+    "urls": {
+      "last": "https://api.discogs.com/users/example-owner/wants?page=3&per_page=3&sort=added&sort_order=desc",
+      "next": "https://api.discogs.com/users/example-owner/wants?page=2&per_page=3&sort=added&sort_order=desc"
+    }
+  },
+  "src": "es",
+  "wants": [
+    {
+      "id": 26304263,
+      "resource_url": "https://api.discogs.com/users/example-owner/wants/26304263",
+      "date_added": "2026-11-02T10:11:12-08:00",
+      "basic_information": {
+        "id": 26304263,
+        "master_id": 0,
+        "master_url": null,
+        "resource_url": "https://api.discogs.com/releases/26304263",
+        "title": "First On Your Block",
+        "year": 1993,
+        "formats": [
+          {
+            "name": "Cassette",
+            "qty": "1",
+            "descriptions": [
+              "Promo"
+            ]
+          }
+        ],
+        "artists": [
+          {
+            "name": "Rick Astley",
+            "anv": "",
+            "join": "",
+            "role": "",
+            "tracks": "",
+            "id": 72872,
+            "resource_url": "https://api.discogs.com/artists/72872"
+          }
+        ],
+        "labels": [
+          {
+            "name": "RCA",
+            "catno": "RDJ-66342-4",
+            "entity_type": "1",
+            "entity_type_name": "Label",
+            "id": 895,
+            "resource_url": "https://api.discogs.com/labels/895"
+          },
+          {
+            "name": "BMG",
+            "catno": "RDJ-68342-4",
+            "entity_type": "1",
+            "entity_type_name": "Label",
+            "id": 1003,
+            "resource_url": "https://api.discogs.com/labels/1003"
+          }
+        ],
+        "thumb": "https://i.discogs.com/rUEy3HNQOvVlXSLvR42OLp2VPV-FPys_24IX8LJBh5I/rs:fit/g:sm/q:40/h:150/w:150/czM6Ly9kaXNjb2dz/LWRhdGFiYXNlLWlt/YWdlcy9SLTI2MzA0/MjYzLTE2Nzc5NjAw/NDktMTk3OS5qcGVn.jpeg",
+        "cover_image": "https://i.discogs.com/ssrhPvqb1rxcXMVvk5g30HtJSTdcNsB4aRS9vTZv5rc/rs:fit/g:sm/q:90/h:382/w:600/czM6Ly9kaXNjb2dz/LWRhdGFiYXNlLWlt/YWdlcy9SLTI2MzA0/MjYzLTE2Nzc5NjAw/NDktMTk3OS5qcGVn.jpeg",
+        "genres": [
+          "Funk / Soul",
+          "Pop"
+        ],
+        "styles": [
+          "Ballad",
+          "Soul"
+        ]
+      },
+      "rating": 0,
+      "notes": ""
+    },
+    {
+      "id": 995860,
+      "resource_url": "https://api.discogs.com/users/example-owner/wants/995860",
+      "date_added": "2026-10-21T17:40:05-07:00",
+      "basic_information": {
+        "id": 995860,
+        "master_id": 96559,
+        "master_url": "https://api.discogs.com/masters/96559",
+        "resource_url": "https://api.discogs.com/releases/995860",
+        "title": "Never Gonna Give You Up",
+        "year": 1987,
+        "formats": [
+          {
+            "name": "Vinyl",
+            "qty": "1",
+            "descriptions": [
+              "12\"",
+              "45 RPM",
+              "Maxi-Single",
+              "Stereo"
+            ]
+          }
+        ],
+        "artists": [
+          {
+            "name": "Rick Astley",
+            "anv": "",
+            "join": "",
+            "role": "",
+            "tracks": "",
+            "id": 72872,
+            "resource_url": "https://api.discogs.com/artists/72872"
+          }
+        ],
+        "labels": [
+          {
+            "name": "RCA",
+            "catno": "PT 41 448",
+            "entity_type": "1",
+            "entity_type_name": "Label",
+            "id": 895,
+            "resource_url": "https://api.discogs.com/labels/895"
+          },
+          {
+            "name": "RCA",
+            "catno": "PT 41448",
+            "entity_type": "1",
+            "entity_type_name": "Label",
+            "id": 895,
+            "resource_url": "https://api.discogs.com/labels/895"
+          },
+          {
+            "name": "RCA",
+            "catno": "PT41448",
+            "entity_type": "1",
+            "entity_type_name": "Label",
+            "id": 895,
+            "resource_url": "https://api.discogs.com/labels/895"
+          }
+        ],
+        "thumb": "https://i.discogs.com/LVsIrrddKD8jYK5yhsUaJ4ZOHTTnXSscmOaBQHlhl4U/rs:fit/g:sm/q:40/h:150/w:150/czM6Ly9kaXNjb2dz/LWRhdGFiYXNlLWlt/YWdlcy9SLTk5NTg2/MC0xNzU2NTYyMjU5/LTY0MTAuanBlZw.jpeg",
+        "cover_image": "https://i.discogs.com/pGyN2bGulAY3B4tIb_iL0zJHVmqo-YB4VY49Ri3AM5s/rs:fit/g:sm/q:90/h:590/w:600/czM6Ly9kaXNjb2dz/LWRhdGFiYXNlLWlt/YWdlcy9SLTk5NTg2/MC0xNzU2NTYyMjU5/LTY0MTAuanBlZw.jpeg",
+        "genres": [
+          "Electronic",
+          "Pop"
+        ],
+        "styles": [
+          "Dance-pop",
+          "Synth-pop",
+          "Hi NRG"
+        ]
+      },
+      "rating": 0,
+      "notes": ""
+    },
+    {
+      "id": 221824,
+      "resource_url": "https://api.discogs.com/users/example-owner/wants/221824",
+      "date_added": "2026-09-09T09:25:49-07:00",
+      "basic_information": {
+        "id": 221824,
+        "master_id": 96559,
+        "master_url": "https://api.discogs.com/masters/96559",
+        "resource_url": "https://api.discogs.com/releases/221824",
+        "title": "Never Gonna Give You Up",
+        "year": 1987,
+        "formats": [
+          {
+            "name": "Vinyl",
+            "qty": "1",
+            "text": "Lyntone/Damont",
+            "descriptions": [
+              "12\"",
+              "45 RPM",
+              "Single"
+            ]
+          }
+        ],
+        "artists": [
+          {
+            "name": "Rick Astley",
+            "anv": "",
+            "join": "",
+            "role": "",
+            "tracks": "",
+            "id": 72872,
+            "resource_url": "https://api.discogs.com/artists/72872"
+          }
+        ],
+        "labels": [
+          {
+            "name": "RCA",
+            "catno": "PT 41448",
+            "entity_type": "1",
+            "entity_type_name": "Label",
+            "id": 895,
+            "resource_url": "https://api.discogs.com/labels/895"
+          }
+        ],
+        "thumb": "https://i.discogs.com/xeC_Fo991G8r2Oepcv6M2bTnkJBZnJBVQAoMCtojfuM/rs:fit/g:sm/q:40/h:150/w:150/czM6Ly9kaXNjb2dz/LWRhdGFiYXNlLWlt/YWdlcy9SLTIyMTgy/NC0xNDE5ODUwNzI1/LTIwODAuanBlZw.jpeg",
+        "cover_image": "https://i.discogs.com/eaLFSDEXcmQfGJ63UtCeLKzm0z6YSrh21rHdsvlwrlY/rs:fit/g:sm/q:90/h:594/w:600/czM6Ly9kaXNjb2dz/LWRhdGFiYXNlLWlt/YWdlcy9SLTIyMTgy/NC0xNDE5ODUwNzI1/LTIwODAuanBlZw.jpeg",
+        "genres": [
+          "Electronic",
+          "Pop"
+        ],
+        "styles": [
+          "Synth-pop"
+        ]
+      },
+      "rating": 0,
+      "notes": ""
+    }
+  ]
+}

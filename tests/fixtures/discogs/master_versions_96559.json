@@ -32,6 +32,10 @@
         "community": {
           "in_wantlist": 128,
           "in_collection": 381
+        },
+        "user": {
+          "in_wantlist": 0,
+          "in_collection": 0
         }
       }
     },
@@ -53,6 +57,10 @@
         "community": {
           "in_wantlist": 578,
           "in_collection": 1398
+        },
+        "user": {
+          "in_wantlist": 0,
+          "in_collection": 0
         }
       }
     },
@@ -74,6 +82,10 @@
         "community": {
           "in_wantlist": 181,
           "in_collection": 61
+        },
+        "user": {
+          "in_wantlist": 0,
+          "in_collection": 0
         }
       }
     }

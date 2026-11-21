@@ -1,0 +1,28 @@
+{
+  "folders": [
+    {
+      "id": 0,
+      "name": "All",
+      "count": 12,
+      "resource_url": "https://api.discogs.com/users/example-owner/collection/folders/0"
+    },
+    {
+      "id": 2000001,
+      "name": "CD",
+      "count": 4,
+      "resource_url": "https://api.discogs.com/users/example-owner/collection/folders/2000001"
+    },
+    {
+      "id": 2000002,
+      "name": "Records",
+      "count": 7,
+      "resource_url": "https://api.discogs.com/users/example-owner/collection/folders/2000002"
+    },
+    {
+      "id": 1,
+      "name": "Uncategorized",
+      "count": 1,
+      "resource_url": "https://api.discogs.com/users/example-owner/collection/folders/1"
+    }
+  ]
+}

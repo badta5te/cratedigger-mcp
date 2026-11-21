@@ -1,0 +1,333 @@
+{
+  "pagination": {
+    "page": 1,
+    "pages": 3,
+    "per_page": 5,
+    "items": 12,
+    "urls": {
+      "last": "https://api.discogs.com/users/example-owner/collection/folders/0/releases?page=3&per_page=5&sort=added&sort_order=desc",
+      "next": "https://api.discogs.com/users/example-owner/collection/folders/0/releases?page=2&per_page=5&sort=added&sort_order=desc"
+    }
+  },
+  "releases": [
+    {
+      "id": 3499619,
+      "instance_id": 1500000005,
+      "date_added": "2026-10-28T11:02:44-07:00",
+      "rating": 0,
+      "basic_information": {
+        "id": 3499619,
+        "master_id": 0,
+        "master_url": null,
+        "resource_url": "https://api.discogs.com/releases/3499619",
+        "thumb": "https://i.discogs.com/QgFse7D0HdRUhxCZxN4gLbtb0lUjU1LHdnK6WKjn7pI/rs:fit/g:sm/q:40/h:150/w:150/czM6Ly9kaXNjb2dz/LWRhdGFiYXNlLWlt/YWdlcy9SLTM0OTk2/MTktMTU5NTI4MTUy/OS00MjcwLmpwZWc.jpeg",
+        "cover_image": "https://i.discogs.com/JJFq_e51FnCdhO23InJnjsAi6rptvAckkEIiGI69gnQ/rs:fit/g:sm/q:90/h:467/w:600/czM6Ly9kaXNjb2dz/LWRhdGFiYXNlLWlt/YWdlcy9SLTM0OTk2/MTktMTU5NTI4MTUy/OS00MjcwLmpwZWc.jpeg",
+        "title": "Wonderful You",
+        "year": 1991,
+        "formats": [
+          {
+            "name": "CD",
+            "qty": "1",
+            "descriptions": [
+              "Single",
+              "Promo"
+            ]
+          }
+        ],
+        "labels": [
+          {
+            "name": "RCA",
+            "catno": "RDJ62068-2",
+            "entity_type": "1",
+            "entity_type_name": "Label",
+            "id": 895,
+            "resource_url": "https://api.discogs.com/labels/895"
+          },
+          {
+            "name": "RCA",
+            "catno": "RDJ 62068-2",
+            "entity_type": "1",
+            "entity_type_name": "Label",
+            "id": 895,
+            "resource_url": "https://api.discogs.com/labels/895"
+          }
+        ],
+        "artists": [
+          {
+            "name": "Rick Astley",
+            "anv": "",
+            "join": "",
+            "role": "",
+            "tracks": "",
+            "id": 72872,
+            "resource_url": "https://api.discogs.com/artists/72872"
+          }
+        ],
+        "genres": [
+          "Pop"
+        ],
+        "styles": []
+      },
+      "folder_id": 2000001,
+      "notes": [
+        {
+          "field_id": 2,
+          "value": "Very Good Plus (VG+)"
+        }
+      ]
+    },
+    {
+      "id": 249504,
+      "instance_id": 1500000004,
+      "date_added": "2026-10-12T19:15:03-07:00",
+      "rating": 0,
+      "basic_information": {
+        "id": 249504,
+        "master_id": 96559,
+        "master_url": "https://api.discogs.com/masters/96559",
+        "resource_url": "https://api.discogs.com/releases/249504",
+        "thumb": "https://i.discogs.com/HG2xChKN-rIHHSfgL53W9z2vJWeFknfevpOMwSHtIaM/rs:fit/g:sm/q:40/h:150/w:150/czM6Ly9kaXNjb2dz/LWRhdGFiYXNlLWlt/YWdlcy9SLTI0OTUw/NC0xMzM0NTkyMjEy/LmpwZWc.jpeg",
+        "cover_image": "https://i.discogs.com/-DPFA5hKT8i91jnjn4rLB1zSiuUBFTrGWspu1TpLV30/rs:fit/g:sm/q:90/h:600/w:600/czM6Ly9kaXNjb2dz/LWRhdGFiYXNlLWlt/YWdlcy9SLTI0OTUw/NC0xMzM0NTkyMjEy/LmpwZWc.jpeg",
+        "title": "Never Gonna Give You Up",
+        "year": 1987,
+        "formats": [
+          {
+            "name": "Vinyl",
+            "qty": "1",
+            "text": "CBS Pressing",
+            "descriptions": [
+              "7\"",
+              "45 RPM",
+              "Single",
+              "Stereo"
+            ]
+          }
+        ],
+        "labels": [
+          {
+            "name": "RCA",
+            "catno": "PB 41447",
+            "entity_type": "1",
+            "entity_type_name": "Label",
+            "id": 895,
+            "resource_url": "https://api.discogs.com/labels/895"
+          }
+        ],
+        "artists": [
+          {
+            "name": "Rick Astley",
+            "anv": "",
+            "join": "",
+            "role": "",
+            "tracks": "",
+            "id": 72872,
+            "resource_url": "https://api.discogs.com/artists/72872"
+          }
+        ],
+        "genres": [
+          "Electronic",
+          "Pop"
+        ],
+        "styles": [
+          "Euro-Disco"
+        ]
+      },
+      "folder_id": 1
+    },
+    {
+      "id": 1570630,
+      "instance_id": 1500000003,
+      "date_added": "2026-09-30T08:47:21-07:00",
+      "rating": 0,
+      "basic_information": {
+        "id": 1570630,
+        "master_id": 96559,
+        "master_url": "https://api.discogs.com/masters/96559",
+        "resource_url": "https://api.discogs.com/releases/1570630",
+        "thumb": "https://i.discogs.com/KS4lWnT_twHwCd1L3Mm9RyJUCSdfoGHz-Ec_K-0Prgw/rs:fit/g:sm/q:40/h:150/w:150/czM6Ly9kaXNjb2dz/LWRhdGFiYXNlLWlt/YWdlcy9SLTE1NzA2/MzAtMTQ4MTk5MDMy/Mi05ODk2LmpwZWc.jpeg",
+        "cover_image": "https://i.discogs.com/FLpTJSdZn-uCkP-BvYEDWp2rLfXUnEVQL4satQ4CiL8/rs:fit/g:sm/q:90/h:600/w:600/czM6Ly9kaXNjb2dz/LWRhdGFiYXNlLWlt/YWdlcy9SLTE1NzA2/MzAtMTQ4MTk5MDMy/Mi05ODk2LmpwZWc.jpeg",
+        "title": "Original Hit Singles",
+        "year": 1989,
+        "formats": [
+          {
+            "name": "CD",
+            "qty": "1",
+            "descriptions": [
+              "Mini",
+              "Single"
+            ]
+          }
+        ],
+        "labels": [
+          {
+            "name": "RCA",
+            "catno": "PD 42639",
+            "entity_type": "1",
+            "entity_type_name": "Label",
+            "id": 895,
+            "resource_url": "https://api.discogs.com/labels/895"
+          }
+        ],
+        "artists": [
+          {
+            "name": "Rick Astley",
+            "anv": "",
+            "join": "",
+            "role": "",
+            "tracks": "",
+            "id": 72872,
+            "resource_url": "https://api.discogs.com/artists/72872"
+          }
+        ],
+        "genres": [
+          "Pop"
+        ],
+        "styles": []
+      },
+      "folder_id": 2000001,
+      "notes": [
+        {
+          "field_id": 1,
+          "value": "Near Mint (NM or M-)"
+        },
+        {
+          "field_id": 2,
+          "value": "Near Mint (NM or M-)"
+        }
+      ]
+    },
+    {
+      "id": 1621435,
+      "instance_id": 1500000002,
+      "date_added": "2026-09-14T21:30:58-07:00",
+      "rating": 0,
+      "basic_information": {
+        "id": 1621435,
+        "master_id": 43077,
+        "master_url": "https://api.discogs.com/masters/43077",
+        "resource_url": "https://api.discogs.com/releases/1621435",
+        "thumb": "https://i.discogs.com/d5ZMJ6Pwa-tvruCLBSL-yEZd9fYyH_8T5O_PHe88NfE/rs:fit/g:sm/q:40/h:150/w:150/czM6Ly9kaXNjb2dz/LWRhdGFiYXNlLWlt/YWdlcy9SLTE2MjE0/MzUtMTM3NTEzMTQ1/NC00NTc1LmpwZWc.jpeg",
+        "cover_image": "https://i.discogs.com/4EWRlmQRI28uYU-MWrsm2vI4OalFJK3YgVwazgy46Mo/rs:fit/g:sm/q:90/h:600/w:600/czM6Ly9kaXNjb2dz/LWRhdGFiYXNlLWlt/YWdlcy9SLTE2MjE0/MzUtMTM3NTEzMTQ1/NC00NTc1LmpwZWc.jpeg",
+        "title": "Swim",
+        "year": 1993,
+        "formats": [
+          {
+            "name": "Vinyl",
+            "qty": "1",
+            "descriptions": [
+              "12\"",
+              "Promo"
+            ]
+          }
+        ],
+        "labels": [
+          {
+            "name": "Columbia",
+            "catno": "XPR 1948",
+            "entity_type": "1",
+            "entity_type_name": "Label",
+            "id": 1866,
+            "resource_url": "https://api.discogs.com/labels/1866"
+          }
+        ],
+        "artists": [
+          {
+            "name": "Fishbone",
+            "anv": "",
+            "join": "",
+            "role": "",
+            "tracks": "",
+            "id": 121386,
+            "resource_url": "https://api.discogs.com/artists/121386"
+          }
+        ],
+        "genres": [
+          "Rock"
+        ],
+        "styles": [
+          "Alternative Rock",
+          "Funk Metal"
+        ]
+      },
+      "folder_id": 2000002,
+      "notes": [
+        {
+          "field_id": 1,
+          "value": "Very Good Plus (VG+)"
+        },
+        {
+          "field_id": 2,
+          "value": "Very Good Plus (VG+)"
+        }
+      ]
+    },
+    {
+      "id": 249504,
+      "instance_id": 1500000001,
+      "date_added": "2026-08-02T14:09:37-07:00",
+      "rating": 0,
+      "basic_information": {
+        "id": 249504,
+        "master_id": 96559,
+        "master_url": "https://api.discogs.com/masters/96559",
+        "resource_url": "https://api.discogs.com/releases/249504",
+        "thumb": "https://i.discogs.com/HG2xChKN-rIHHSfgL53W9z2vJWeFknfevpOMwSHtIaM/rs:fit/g:sm/q:40/h:150/w:150/czM6Ly9kaXNjb2dz/LWRhdGFiYXNlLWlt/YWdlcy9SLTI0OTUw/NC0xMzM0NTkyMjEy/LmpwZWc.jpeg",
+        "cover_image": "https://i.discogs.com/-DPFA5hKT8i91jnjn4rLB1zSiuUBFTrGWspu1TpLV30/rs:fit/g:sm/q:90/h:600/w:600/czM6Ly9kaXNjb2dz/LWRhdGFiYXNlLWlt/YWdlcy9SLTI0OTUw/NC0xMzM0NTkyMjEy/LmpwZWc.jpeg",
+        "title": "Never Gonna Give You Up",
+        "year": 1987,
+        "formats": [
+          {
+            "name": "Vinyl",
+            "qty": "1",
+            "text": "CBS Pressing",
+            "descriptions": [
+              "7\"",
+              "45 RPM",
+              "Single",
+              "Stereo"
+            ]
+          }
+        ],
+        "labels": [
+          {
+            "name": "RCA",
+            "catno": "PB 41447",
+            "entity_type": "1",
+            "entity_type_name": "Label",
+            "id": 895,
+            "resource_url": "https://api.discogs.com/labels/895"
+          }
+        ],
+        "artists": [
+          {
+            "name": "Rick Astley",
+            "anv": "",
+            "join": "",
+            "role": "",
+            "tracks": "",
+            "id": 72872,
+            "resource_url": "https://api.discogs.com/artists/72872"
+          }
+        ],
+        "genres": [
+          "Electronic",
+          "Pop"
+        ],
+        "styles": [
+          "Euro-Disco"
+        ]
+      },
+      "folder_id": 2000002,
+      "notes": [
+        {
+          "field_id": 1,
+          "value": "Near Mint (NM or M-)"
+        },
+        {
+          "field_id": 2,
+          "value": "Very Good Plus (VG+)"
+        }
+      ]
+    }
+  ]
+}

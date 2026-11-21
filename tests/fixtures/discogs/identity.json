@@ -1,0 +1,6 @@
+{
+  "id": 1234567,
+  "username": "example-owner",
+  "resource_url": "https://api.discogs.com/users/example-owner",
+  "consumer_name": "Example App"
+}
