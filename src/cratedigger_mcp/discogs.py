@@ -2,15 +2,16 @@
 
 It authenticates every request with the Owner's token and the project User-Agent, paces
 requests on the rate-limit headers Discogs returns, waits and retries when Discogs answers
-HTTP 429, maps HTTP failures to domain errors and returns typed models instead of raw JSON.
+HTTP 429, maps HTTP failures and unexpected responses to domain errors and returns typed models
+instead of raw JSON.
 """
 
 import asyncio
+import logging
 from datetime import datetime
-from typing import Any
 
 import httpx2
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from cratedigger_mcp import __version__
 from cratedigger_mcp.clock import Clock
@@ -27,6 +28,8 @@ LOW_QUOTA_SHARE = 0.1
 # Waits before each retry of a request Discogs rejected with HTTP 429. Bounded, so a tool call
 # gives up within well under a minute instead of looping.
 RETRY_DELAYS_SECONDS = (5.0, 10.0, 20.0)
+
+logger = logging.getLogger(__name__)
 
 
 class DiscogsError(Exception):
@@ -178,9 +181,9 @@ class DiscogsClient:
         self._pacer = _Pacer(clock)
 
     async def get_release(self, release_id: int) -> Release:
-        return Release.model_validate(await self._get(f"/releases/{release_id}"))
+        return await self._get(f"/releases/{release_id}", Release)
 
-    async def _get(self, path: str) -> Any:
+    async def _get[M: BaseModel](self, path: str, model: type[M]) -> M:
         response = await self._send(path)
         for delay in RETRY_DELAYS_SECONDS:
             if response.status_code != 429:
@@ -199,13 +202,19 @@ class DiscogsClient:
             raise DiscogsError(
                 f"Discogs answered HTTP {response.status_code} for {path}. Try again later."
             )
-        return response.json()
+        try:
+            return model.model_validate_json(response.content)
+        except ValidationError as error:  # not JSON, or not the shape the model expects
+            logger.warning("Unexpected Discogs response for %s: %s", path, error)
+            raise DiscogsError(
+                f"Discogs sent an unexpected response for {path}. Try again later."
+            ) from None
 
     async def _send(self, path: str) -> httpx2.Response:
         await self._pacer.wait_turn()
         try:
             response = await self._http.get(path)
-        except httpx2.TransportError as error:
+        except httpx2.RequestError as error:
             raise DiscogsError(
                 f"Could not reach Discogs ({type(error).__name__}). Try again in a moment."
             ) from None

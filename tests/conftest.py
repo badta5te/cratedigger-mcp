@@ -63,6 +63,8 @@ class FakeDiscogs:
         self.reject_token = False
         self.failing_status: int | None = None
         self.unreachable = False
+        self.transport_error: httpx2.RequestError | None = None  # raised instead of answering
+        self.non_json_body: str | None = None  # served with HTTP 200 instead of the fixture
         self.throttled_requests = 0  # how many upcoming requests get HTTP 429
         self.transport = httpx2.MockTransport(self._handle)
 
@@ -100,6 +102,8 @@ class FakeDiscogs:
         if self.unreachable:
             # Echo the headers into the exception to prove they never reach Claude.
             raise httpx2.ConnectError(f"connection refused, headers={dict(request.headers)}")
+        if self.transport_error is not None:
+            raise self.transport_error
         if self.reject_token:
             return httpx2.Response(401, json=load_fixture("error_401.json"))
         throttled = self.throttled_requests > 0
@@ -113,6 +117,8 @@ class FakeDiscogs:
         headers = self._rate_limit_headers(used=len(self._counted_at))
         if self.failing_status is not None:
             return httpx2.Response(self.failing_status)
+        if self.non_json_body is not None:
+            return httpx2.Response(200, headers=headers, text=self.non_json_body)
         parts = request.url.path.strip("/").split("/")
         if len(parts) == 2 and parts[0] == "releases" and parts[1].isdigit():
             release = self.releases.get(int(parts[1]))
