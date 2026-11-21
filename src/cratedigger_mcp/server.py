@@ -71,6 +71,11 @@ Finish with the release_id you are confident about, a one-line summary of the Re
 why it matches."""
 
 
+def given_filters(**filters: str | int | None) -> dict[str, str | int]:
+    """The filters the caller actually gave: neither left out nor empty."""
+    return {name: value for name, value in filters.items() if value is not None and value != ""}
+
+
 def tool_error(error: DiscogsError) -> ToolError:
     """The tool error Claude sees for a Discogs failure, with the next step to take."""
     if isinstance(error, UnauthorizedError):
@@ -184,18 +189,9 @@ def create_server(
         Do not use it to check what the Owner has or wants: use discogs_list_collection or
         discogs_list_wantlist, and discogs_match_collection for a list of albums.
         """
-        filters = {
-            name: value
-            for name, value in {
-                "artist": artist,
-                "year": year,
-                "format": format,
-                "country": country,
-                "catno": catno,
-                "barcode": barcode,
-            }.items()
-            if value is not None and value != ""
-        }
+        filters = given_filters(
+            artist=artist, year=year, format=format, country=country, catno=catno, barcode=barcode
+        )
         query = query.strip()
         if not query and not filters:
             raise ToolError(
@@ -249,14 +245,11 @@ def create_server(
 
         Use it to compare the available editions of an album by country, year, label, catalog
         number and Format, narrowed to one Format, country or year. Each line carries the
-        release_id for discogs_get_release. Results are sorted by release date and paged.
+        release_id for discogs_get_release. Results are sorted by release date unless another
+        sort is asked for, and paged.
         Find the master_id with discogs_search (type="master") or on a Release card.
         """
-        filters = {
-            name: value
-            for name, value in {"format": format, "country": country, "year": year}.items()
-            if value is not None and value != ""
-        }
+        filters = given_filters(format=format, country=country, year=year)
         params = {
             **{("released" if name == "year" else name): value for name, value in filters.items()},
             "sort": sort,
@@ -268,19 +261,16 @@ def create_server(
             master = await cache.get_or_load(
                 ("master", master_id), CATALOG_TTL, lambda: client.get_master(master_id)
             )
-        except NotFoundError:
-            raise ToolError(
-                f"Master {master_id} not found on Discogs. "
-                'Use discogs_search with type="master" to find the master_id.'
-            ) from None
-        except DiscogsError as error:
-            raise tool_error(error) from None
-        try:
             found = await cache.get_or_load(
                 ("master_releases", master_id, tuple(params.items()), limit, page),
                 CATALOG_TTL,
                 lambda: client.list_master_releases(master_id, params, per_page=limit, page=page),
             )
+        except NotFoundError:
+            raise ToolError(
+                f"Master {master_id} not found on Discogs. "
+                'Use discogs_search with type="master" to find the master_id.'
+            ) from None
         except DiscogsError as error:
             raise tool_error(error) from None
         return master_releases(master, found, filters, sort)

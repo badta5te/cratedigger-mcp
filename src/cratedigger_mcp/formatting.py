@@ -105,20 +105,20 @@ def master_releases(
     """One page of a Master's Releases, numbered across pages, with a next-page hint."""
     pagination = found.pagination
     footer = ["", attribution(master.uri or f"https://www.discogs.com/master/{master.id}")]
-    name = (
+    master_label = (
         f"{master.title} — {_artist_credit(master.artists)}"
         + (f" ({master.year})" if master.year else "")
         + f" [master_id={master.id}]"
     )
-    applied = ", ".join(f"{key}={value}" for key, value in filters.items())
+    filter_text = ", ".join(f"{key}={value}" for key, value in filters.items())
     if pagination.items == 0:
         if not filters:
-            return "\n".join([f"Discogs lists no Releases of the Master {name}.", *footer])
+            return "\n".join([f"Discogs lists no Releases of the Master {master_label}.", *footer])
         return "\n".join(
             [
-                f"No Releases of the Master {name} match {applied}. Filter values are exact and "
-                "case-sensitive, as Discogs writes them (Vinyl, CD, UK): check them or use "
-                "fewer filters.",
+                f"No Releases of the Master {master_label} match {filter_text}. Filter values "
+                "are exact and case-sensitive, as Discogs writes them (Vinyl, CD, UK): check "
+                "them or use fewer filters.",
                 *footer,
             ]
         )
@@ -133,7 +133,11 @@ def master_releases(
     heading = ", ".join(
         filter(
             None,
-            [f"Releases of the Master {name}", applied, f"sorted by {MASTER_RELEASE_SORTS[sort]}"],
+            [
+                f"Releases of the Master {master_label}",
+                filter_text,
+                f"sorted by {MASTER_RELEASE_SORTS[sort]}",
+            ],
         )
     )
     first = (pagination.page - 1) * pagination.per_page + 1
