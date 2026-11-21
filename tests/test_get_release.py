@@ -109,3 +109,34 @@ async def test_artist_credit_follows_discogs_naming(
     card = await get_release(client, 1621435)
 
     assert card.startswith("Swim — Fishbone & Familyhood [release_id=1621435]\n")
+
+
+async def test_tracklist_shows_headings_and_the_parts_of_index_tracks(
+    client: Client[Any], discogs: FakeDiscogs
+) -> None:
+    discogs.releases[1621435]["tracklist"] = [
+        {"position": "", "type_": "heading", "title": "Side One", "duration": ""},
+        {"position": "A1", "type_": "track", "title": "Overture", "duration": "2:10"},
+        {
+            "position": "A2",
+            "type_": "index",
+            "title": "Suite",
+            "duration": "",
+            "sub_tracks": [
+                {"position": "A2a", "type_": "track", "title": "Dawn", "duration": "4:01"},
+                {"position": "A2b", "type_": "track", "title": "Dusk", "duration": ""},
+            ],
+        },
+    ]
+
+    card = await get_release(client, 1621435)
+
+    tracklist = [
+        "Tracklist:",
+        "Side One:",
+        "A1  Overture (2:10)",
+        "A2  Suite",
+        "  A2a  Dawn (4:01)",
+        "  A2b  Dusk",
+    ]
+    assert "\n".join(tracklist) + "\n\n" in card

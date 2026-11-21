@@ -35,7 +35,7 @@ def release_card(release: Release, response_format: ResponseFormat = "concise") 
         f"Discogs community: {release.community.have} have · {release.community.want} want",
         "",
         "Tracklist:",
-        *(_track(track) for track in release.tracklist),
+        *_tracklist(release.tracklist),
     ]
     if response_format == "detailed":
         lines += ["", *_identifiers(release), "", *_notes(release.notes)]
@@ -66,6 +66,17 @@ def _formats(formats: list[Format]) -> str:
         quantity = f"{medium.qty} × " if medium.qty not in ("", "1") else ""
         rendered.append(quantity + ", ".join(parts))
     return " + ".join(rendered) or "unknown"
+
+
+def _tracklist(tracks: list[Track]) -> list[str]:
+    lines = []
+    for track in tracks:
+        if track.type_ == "heading":
+            lines.append(f"{track.title}:")
+            continue
+        lines.append(_track(track))
+        lines += [f"  {_track(part)}" for part in track.sub_tracks]
+    return lines
 
 
 def _track(track: Track) -> str:

@@ -71,9 +71,14 @@ class Format(_Model):
 
 
 class Track(_Model):
+    """A tracklist entry: a track, a heading such as "Side One", or an index track that groups
+    the parts of a suite or medley in `sub_tracks`."""
+
     position: str = ""
     title: str = ""
     duration: str = ""
+    type_: str = "track"
+    sub_tracks: list["Track"] = Field(default_factory=list)
 
 
 class Identifier(_Model):
