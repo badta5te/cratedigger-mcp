@@ -26,8 +26,8 @@ from cratedigger_mcp.discogs import (
 )
 from cratedigger_mcp.formatting import (
     ResponseFormat,
+    marketplace_prices,
     master_releases,
-    prices,
     release_card,
     search_results,
 )
@@ -315,7 +315,7 @@ def create_server(
                     await cache.get_or_load(
                         ("price", release_id, chosen),
                         PRICE_TTL,
-                        partial(client.check_price, release_id, chosen),
+                        partial(client.check_marketplace, release_id, chosen),
                     )
                 )
             except NotFoundError:
@@ -329,7 +329,7 @@ def create_server(
                 + " not found on Discogs. Use discogs_search to find the release_id, then ask "
                 "again."
             )
-        return prices(checks, chosen)
+        return marketplace_prices(checks, chosen)
 
     @mcp.prompt(title="Identify a Discogs Release")
     def identify_release(

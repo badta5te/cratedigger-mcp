@@ -177,7 +177,7 @@ class MasterReleasesPage(_Model):
     versions: list[MasterRelease] = Field(default_factory=list)
 
 
-class Price(_Model):
+class LowestPrice(_Model):
     value: float
     currency: str
 
@@ -186,12 +186,12 @@ class MarketplaceStats(_Model):
     """A Release's Marketplace summary. A Release blocked from sale has no counts at all."""
 
     num_for_sale: int | None = None
-    lowest_price: Price | None = None
+    lowest_price: LowestPrice | None = None
     blocked_from_sale: bool = False
 
 
 @dataclass(frozen=True)
-class PriceCheck:
+class MarketplaceCheck:
     """The Marketplace stats of one Release and when Discogs reported them."""
 
     release_id: int
@@ -286,12 +286,12 @@ class DiscogsClient:
         paged = {**params, "type": search_type, "per_page": per_page, "page": page}
         return await self._get("/database/search", SearchPage, paged)
 
-    async def check_price(self, release_id: int, currency: Currency) -> PriceCheck:
+    async def check_marketplace(self, release_id: int, currency: Currency) -> MarketplaceCheck:
         """The Lowest price and the number for sale of a Release, in `currency`."""
         stats = await self._get(
             f"/marketplace/stats/{release_id}", MarketplaceStats, {"curr_abbr": currency}
         )
-        return PriceCheck(release_id, stats, checked_at=self._clock.now())
+        return MarketplaceCheck(release_id, stats, checked_at=self._clock.now())
 
     async def get_master(self, master_id: int) -> Master:
         return await self._get(f"/masters/{master_id}", Master)

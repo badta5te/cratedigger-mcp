@@ -10,12 +10,13 @@ from urllib.parse import urlencode
 
 from cratedigger_mcp.discogs import (
     Artist,
+    Currency,
     Format,
+    MarketplaceCheck,
     Master,
     MasterRelease,
     MasterReleaseSort,
     MasterReleasesPage,
-    PriceCheck,
     QueryParams,
     Release,
     SearchPage,
@@ -69,7 +70,7 @@ def release_card(release: Release, response_format: ResponseFormat = "concise") 
     return "\n".join(lines)
 
 
-def prices(checks: list[PriceCheck], currency: str) -> str:
+def marketplace_prices(checks: list[MarketplaceCheck], currency: Currency) -> str:
     """The Lowest price of each Release, with what it means and when it was checked."""
     sell_url = (
         f"https://www.discogs.com/sell/release/{checks[0].release_id}"
@@ -80,14 +81,14 @@ def prices(checks: list[PriceCheck], currency: str) -> str:
         [
             f"Marketplace prices in {currency}. Lowest price: the cheapest current listing in "
             "any condition, excluding shipping; not a market value.",
-            *(_price(check) for check in checks),
+            *(_marketplace_line(check) for check in checks),
             "",
             attribution(sell_url),
         ]
     )
 
 
-def _price(check: PriceCheck) -> str:
+def _marketplace_line(check: MarketplaceCheck) -> str:
     stats = check.stats
     if stats.blocked_from_sale:
         status = "blocked from sale on the Discogs Marketplace"
