@@ -69,3 +69,21 @@ async def test_server_speaks_mcp_over_stdio(tmp_path: Path) -> None:
 
     # The full catalog is pinned in test_tool_catalog; here it is enough that tools are served.
     assert "discogs_get_release" in {tool.name for tool in tools}
+
+
+def test_unsupported_currency_stops_the_server_with_the_supported_ones(tmp_path: Path) -> None:
+    process = subprocess.run(
+        [sys.executable, "-c", START_SERVER],
+        env=clean_env(DISCOGS_TOKEN="dummy-token", DISCOGS_CURRENCY="XYZ"),
+        cwd=tmp_path,
+        input="",
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+
+    assert process.returncode != 0
+    assert process.stdout == ""
+    assert "discogs_currency" in process.stderr
+    assert "'EUR'" in process.stderr
+    assert "Traceback" not in process.stderr

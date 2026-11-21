@@ -4,6 +4,7 @@ Every card carries the IDs for the next call and ends with the Discogs attributi
 """
 
 import re
+from datetime import UTC
 from typing import Literal
 from urllib.parse import urlencode
 
@@ -14,6 +15,7 @@ from cratedigger_mcp.discogs import (
     MasterRelease,
     MasterReleaseSort,
     MasterReleasesPage,
+    PriceCheck,
     QueryParams,
     Release,
     SearchPage,
@@ -65,6 +67,37 @@ def release_card(release: Release, response_format: ResponseFormat = "concise") 
         lines += ["", *_identifiers(release), "", *_notes(release.notes)]
     lines += ["", attribution(release.uri or f"https://www.discogs.com/release/{release.id}")]
     return "\n".join(lines)
+
+
+def prices(checks: list[PriceCheck], currency: str) -> str:
+    """The Lowest price of each Release, with what it means and when it was checked."""
+    sell_url = (
+        f"https://www.discogs.com/sell/release/{checks[0].release_id}"
+        if len(checks) == 1
+        else "https://www.discogs.com/sell/list"
+    )
+    return "\n".join(
+        [
+            f"Marketplace prices in {currency}. Lowest price: the cheapest current listing in "
+            "any condition, excluding shipping; not a market value.",
+            *(_price(check) for check in checks),
+            "",
+            attribution(sell_url),
+        ]
+    )
+
+
+def _price(check: PriceCheck) -> str:
+    stats = check.stats
+    if stats.blocked_from_sale:
+        status = "blocked from sale on the Discogs Marketplace"
+    elif stats.lowest_price is None or not stats.num_for_sale:
+        status = "nothing for sale right now"
+    else:
+        price = stats.lowest_price
+        status = f"Lowest price {price.value:.2f} {price.currency} · {stats.num_for_sale} for sale"
+    checked = check.checked_at.astimezone(UTC).strftime("%Y-%m-%d %H:%M UTC")
+    return f"release_id={check.release_id}: {status} · checked {checked}"
 
 
 def search_results(

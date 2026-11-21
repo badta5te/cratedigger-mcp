@@ -9,6 +9,7 @@ instead of raw JSON.
 import asyncio
 import logging
 from collections.abc import Mapping
+from dataclasses import dataclass
 from datetime import datetime
 from typing import Literal
 
@@ -113,6 +114,10 @@ class Release(_Model):
 SearchType = Literal["release", "master", "artist", "label"]
 # The orders Discogs can sort a Master's Releases in.
 MasterReleaseSort = Literal["released", "title", "format", "label", "catno", "country"]
+# The currencies Discogs reports Marketplace prices in.
+Currency = Literal[
+    "USD", "GBP", "EUR", "CAD", "AUD", "JPY", "CHF", "MXN", "BRL", "NZD", "SEK", "ZAR"
+]
 # Query-string parameters of a Discogs request, such as q, artist, year or page.
 QueryParams = Mapping[str, str | int]
 
@@ -170,6 +175,28 @@ class MasterRelease(_Model):
 class MasterReleasesPage(_Model):
     pagination: Pagination
     versions: list[MasterRelease] = Field(default_factory=list)
+
+
+class Price(_Model):
+    value: float
+    currency: str
+
+
+class MarketplaceStats(_Model):
+    """A Release's Marketplace summary. A Release blocked from sale has no counts at all."""
+
+    num_for_sale: int | None = None
+    lowest_price: Price | None = None
+    blocked_from_sale: bool = False
+
+
+@dataclass(frozen=True)
+class PriceCheck:
+    """The Marketplace stats of one Release and when Discogs reported them."""
+
+    release_id: int
+    stats: MarketplaceStats
+    checked_at: datetime
 
 
 class _Pacer:
@@ -258,6 +285,13 @@ class DiscogsClient:
         """One page of catalog search results."""
         paged = {**params, "type": search_type, "per_page": per_page, "page": page}
         return await self._get("/database/search", SearchPage, paged)
+
+    async def check_price(self, release_id: int, currency: Currency) -> PriceCheck:
+        """The Lowest price and the number for sale of a Release, in `currency`."""
+        stats = await self._get(
+            f"/marketplace/stats/{release_id}", MarketplaceStats, {"curr_abbr": currency}
+        )
+        return PriceCheck(release_id, stats, checked_at=self._clock.now())
 
     async def get_master(self, master_id: int) -> Master:
         return await self._get(f"/masters/{master_id}", Master)

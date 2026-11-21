@@ -70,6 +70,13 @@ class FakeDiscogs:
         self.masters: dict[int, Any] = {96559: load_fixture("master_96559.json")}
         # The captured first page of each Master's Releases, sorted by release date.
         self.master_releases: dict[int, Any] = {96559: load_fixture("master_versions_96559.json")}
+        # Marketplace stats by release_id, as captured in EUR; the fake answers in the currency
+        # asked for, keeping the captured value.
+        self.marketplace_stats: dict[int, Any] = {
+            249504: load_fixture("marketplace_stats_249504.json"),
+            23: load_fixture("marketplace_stats_nothing_for_sale.json"),
+            3341754: load_fixture("marketplace_stats_blocked.json"),
+        }
         self.reject_token = False
         self.failing_status: int | None = None
         self.unreachable = False
@@ -150,6 +157,8 @@ class FakeDiscogs:
                 return httpx2.Response(200, headers=headers, json=master)
             if parts[2:] == ["versions"]:
                 return self._master_releases(master_id, request, headers)
+        if len(parts) == 3 and parts[:2] == ["marketplace", "stats"] and parts[2].isdigit():
+            return self._marketplace_stats(int(parts[2]), request, headers)
         return httpx2.Response(
             404, headers=headers, json={"message": "The requested resource was not found."}
         )
@@ -195,6 +204,18 @@ class FakeDiscogs:
         pagination.update(page=page, per_page=per_page, pages=pages)
         return httpx2.Response(200, headers=headers, json=found)
 
+    def _marketplace_stats(
+        self, release_id: int, request: httpx2.Request, headers: dict[str, str]
+    ) -> httpx2.Response:
+        stats = copy.deepcopy(self.marketplace_stats.get(release_id))
+        if stats is None:
+            return httpx2.Response(
+                404, headers=headers, json=load_fixture("error_404_marketplace_stats.json")
+            )
+        if stats["lowest_price"] is not None:
+            stats["lowest_price"]["currency"] = request.url.params.get("curr_abbr", "USD")
+        return httpx2.Response(200, headers=headers, json=stats)
+
 
 @pytest.fixture
 def clock() -> FakeClock:
@@ -207,10 +228,16 @@ def discogs(clock: FakeClock) -> FakeDiscogs:
 
 
 @pytest.fixture
-async def client(discogs: FakeDiscogs, clock: FakeClock) -> AsyncIterator[Client[Any]]:
-    server = create_server(
-        Settings(discogs_token=TEST_TOKEN), transport=discogs.transport, clock=clock
-    )
+def settings() -> Settings:
+    # Every value is explicit, so the developer's environment cannot leak into a test.
+    return Settings(discogs_token=TEST_TOKEN, discogs_currency="EUR")
+
+
+@pytest.fixture
+async def client(
+    settings: Settings, discogs: FakeDiscogs, clock: FakeClock
+) -> AsyncIterator[Client[Any]]:
+    server = create_server(settings, transport=discogs.transport, clock=clock)
     async with Client(server) as mcp_client:
         yield mcp_client
 

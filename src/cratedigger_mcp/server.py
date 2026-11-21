@@ -4,6 +4,7 @@ import logging
 import sys
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from functools import partial
 from typing import Annotated, Any
 
 import httpx2
@@ -11,9 +12,10 @@ from fastmcp import Context, FastMCP
 from fastmcp.exceptions import ToolError
 from pydantic import Field, ValidationError
 
-from cratedigger_mcp.cache import CATALOG_TTL, TtlCache
+from cratedigger_mcp.cache import CATALOG_TTL, PRICE_TTL, TtlCache
 from cratedigger_mcp.clock import Clock, SystemClock
 from cratedigger_mcp.discogs import (
+    Currency,
     DiscogsClient,
     DiscogsError,
     MasterReleaseSort,
@@ -25,6 +27,7 @@ from cratedigger_mcp.discogs import (
 from cratedigger_mcp.formatting import (
     ResponseFormat,
     master_releases,
+    prices,
     release_card,
     search_results,
 )
@@ -128,7 +131,8 @@ def create_server(
         what exactly a pressing is: label, catalog number, Format, country, year, tracklist,
         how many Discogs users have or want it, and its Master. Ask for the detailed form to
         tell near-identical pressings apart by matrix/runout etchings, barcode and notes.
-        Do not use it to find a Release by name (use discogs_search) or for prices.
+        Do not use it to find a Release by name (use discogs_search) or for prices
+        (use discogs_get_prices).
         """
         try:
             client = discogs_client(ctx)
@@ -274,6 +278,58 @@ def create_server(
         except DiscogsError as error:
             raise tool_error(error) from None
         return master_releases(master, found, filters, sort)
+
+    @mcp.tool(title="Get Discogs Marketplace Prices", annotations=READ_ONLY, output_schema=None)
+    async def discogs_get_prices(
+        ctx: Context,
+        release_ids: Annotated[
+            list[Annotated[int, Field(gt=0)]],
+            Field(
+                description="1 to 10 Discogs release_ids, e.g. [249504].",
+                min_length=1,
+                max_length=10,
+            ),
+        ],
+        currency: Annotated[
+            Currency | None,
+            Field(description=f"Currency of the prices; {settings.discogs_currency} by default."),
+        ] = None,
+    ) -> str:
+        """Show what Releases (pressings) cost on the Discogs Marketplace right now.
+
+        For each of 1 to 10 release_ids: the Lowest price, how many copies are for sale and
+        whether the Release is blocked from sale, with the time Discogs reported it. The Lowest
+        price is the cheapest current listing in any condition, excluding shipping: not a
+        market value. Use it to compare editions by price, for example after
+        discogs_list_master_releases. For the prices of the Owner's Wantlist use
+        discogs_wantlist_prices.
+        """
+        chosen = currency or settings.discogs_currency
+        client = discogs_client(ctx)
+        checks, unknown = [], []
+        # One after another: a failure leaves no requests running, and the checks that
+        # succeeded are cached for the next call.
+        for release_id in dict.fromkeys(release_ids):  # asked twice, shown once
+            try:
+                checks.append(
+                    await cache.get_or_load(
+                        ("price", release_id, chosen),
+                        PRICE_TTL,
+                        partial(client.check_price, release_id, chosen),
+                    )
+                )
+            except NotFoundError:
+                unknown.append(release_id)
+            except DiscogsError as error:
+                raise tool_error(error) from None
+        if unknown:
+            raise ToolError(
+                ("Releases " if len(unknown) > 1 else "Release ")
+                + ", ".join(map(str, unknown))
+                + " not found on Discogs. Use discogs_search to find the release_id, then ask "
+                "again."
+            )
+        return prices(checks, chosen)
 
     @mcp.prompt(title="Identify a Discogs Release")
     def identify_release(

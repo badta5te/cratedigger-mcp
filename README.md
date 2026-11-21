@@ -19,6 +19,9 @@ stores nothing on disk.
 >   editions of an album by country, year, label, catalog number and Format. It filters by
 >   Format, country and year, sorts by release date by default and pages, and every line carries
 >   the `release_id`.
+> - `discogs_get_prices`: the Lowest price (the cheapest current listing in any condition,
+>   excluding shipping), the number of copies for sale and the blocked-from-sale flag of 1 to 10
+>   Releases, with the time each was checked. Prices are kept in memory for an hour.
 >
 > And one prompt:
 >
@@ -64,6 +67,13 @@ claude mcp add cratedigger --env DISCOGS_TOKEN=your-personal-access-token \
 ```
 
 Then ask, for example: "Show me Discogs release 249504 in detail."
+
+### Settings
+
+| Environment variable | Required | Meaning |
+|---|---|---|
+| `DISCOGS_TOKEN` | yes | Your Discogs personal access token |
+| `DISCOGS_CURRENCY` | no | Currency of prices: USD, GBP, EUR (default), CAD, AUD, JPY, CHF, MXN, BRL, NZD, SEK or ZAR. A tool call can still ask for another one. |
 
 ## Development
 

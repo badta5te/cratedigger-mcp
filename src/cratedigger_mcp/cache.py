@@ -10,6 +10,7 @@ from typing import Any, NamedTuple, cast
 from cratedigger_mcp.clock import Clock
 
 CATALOG_TTL = timedelta(hours=1)
+PRICE_TTL = timedelta(hours=1)
 
 
 class _Entry(NamedTuple):

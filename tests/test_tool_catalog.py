@@ -25,6 +25,13 @@ async def test_tool_catalog_matches_the_contract(client: Client[Any]) -> None:
     assert catalog == snapshot(
         [
             {
+                "name": "discogs_get_prices",
+                "title": "Get Discogs Marketplace Prices",
+                "read_only": True,
+                "destructive": None,
+                "open_world": True,
+            },
+            {
                 "name": "discogs_get_release",
                 "title": "Get Discogs Release",
                 "read_only": True,
@@ -72,6 +79,14 @@ async def test_master_releases_description_names_the_search_keywords(
 
     description = tools["discogs_list_master_releases"].description or ""
     for term in ("pressings", "versions", "discogs_get_release", "discogs_search"):
+        assert term in description
+
+
+async def test_prices_description_says_what_lowest_price_means(client: Client[Any]) -> None:
+    tools = {tool.name: tool for tool in await client.list_tools()}
+
+    description = tools["discogs_get_prices"].description or ""
+    for term in ("any condition", "excluding shipping", "discogs_wantlist_prices"):
         assert term in description
 
 
