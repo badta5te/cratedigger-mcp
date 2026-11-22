@@ -35,6 +35,7 @@ from cratedigger_mcp.discogs import (
     Want,
     Wantlist,
 )
+from cratedigger_mcp.matching import MATCH_RESULTS, AlbumMatch
 
 ResponseFormat = Literal["concise", "detailed"]
 
@@ -57,6 +58,8 @@ COLLECTION_SORTS: dict[CollectionSort, str] = {
 }
 
 NOTES_LIMIT = 1500
+# How many Releases a matched album lists before "and N more".
+MATCHED_RELEASES_SHOWN = 3
 _DISAMBIGUATION = re.compile(r" \(\d+\)$")
 # A grade such as "Very Good Plus (VG+)" reads as its abbreviation.
 _GRADE = re.compile(r"\(([^()]+)\)$")
@@ -339,6 +342,81 @@ def wantlist_wants(
         *footer,
     ]
     return "\n".join(lines)
+
+
+def album_matches(matches: list[AlbumMatch], collection: Collection, wantlist: Wantlist) -> str:
+    """One line per album with its result and the Releases behind it."""
+    results = Counter(found.result for found in matches)
+    counts = ", ".join(f"{results[result]} {result}" for result in MATCH_RESULTS if results[result])
+    albums = f"{len(matches)} album{'' if len(matches) == 1 else 's'}"
+    lines = [
+        f"Matched {albums} against the Collection of {collection.owner} "
+        f"({_copies(len(collection.copies))}) and its Wantlist ({_wants(len(wantlist.wants))}): "
+        f"{counts}.",
+        *(f"{number}. {_album_match(found)}" for number, found in enumerate(matches, start=1)),
+        "",
+        "Use discogs_get_release with a release_id for the full card."
+        + (
+            " A possible match is a Release of the same artist with a longer or shorter title "
+            "under another Master, such as an anniversary or expanded edition: ask the Owner "
+            "or compare the cards."
+            if results["possible"]
+            else ""
+        ),
+        "",
+        attribution(collection_url(collection.owner)),
+    ]
+    return "\n".join(lines)
+
+
+def _album_match(found: AlbumMatch) -> str:
+    album = f"{found.album.artist} — {found.album.title}: {found.result}"
+    match found.result:
+        case "in Collection":
+            return f"{album}: {_matched_releases([copy.release for copy in found.copies])}"
+        case "on Wantlist":
+            return f"{album}: {_matched_releases([want.release for want in found.wants])}"
+        case "possible":
+            candidates = [
+                *(_matched_release(copy.release, 1, "in Collection") for copy in found.copies),
+                *(_matched_release(want.release, 1, "on Wantlist") for want in found.wants),
+            ]
+            return f"{album}: " + _first_few(list(dict.fromkeys(candidates)))
+        case "absent":
+            return album
+
+
+def _matched_releases(releases: list[CollectionRelease]) -> str:
+    """Each Release once, with the number of entries of it when there are several."""
+    entries = Counter(release.id for release in releases)
+    unique = {release.id: release for release in releases}.values()
+    return _first_few([_matched_release(release, entries[release.id]) for release in unique])
+
+
+def _matched_release(release: CollectionRelease, copies: int, where: str = "") -> str:
+    details = [
+        release.title,
+        str(release.year) if release.year else "",
+        _medium_names(release.formats),
+        f"{copies} Copies" if copies > 1 else "",
+        where,
+    ]
+    return " · ".join(filter(None, details)) + f" [release_id={release.id}]"
+
+
+def _first_few(items: list[str]) -> str:
+    shown = "; ".join(items[:MATCHED_RELEASES_SHOWN])
+    more = len(items) - MATCHED_RELEASES_SHOWN
+    return shown + (f"; and {more} more Release{'s' if more > 1 else ''}" if more > 0 else "")
+
+
+def _medium_names(formats: list[Format]) -> str:
+    """The Formats without their details, e.g. "2 × Vinyl + CD"."""
+    names = [
+        (f"{medium.qty} × " if medium.qty not in ("", "1") else "") + medium.name
+        for medium in formats
+    ]
+    return " + ".join(names) or "unknown Format"
 
 
 def wantlist_url(owner: str) -> str:

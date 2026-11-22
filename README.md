@@ -30,6 +30,13 @@ stores nothing on disk.
 >   title text and paged. Each line carries the Release, its Format and the `release_id`.
 > - `discogs_collection_summary`: the number of Copies in each folder and Discogs'
 >   minimum/median/maximum estimate of the Collection's value.
+> - `discogs_match_collection`: checks 1 to 200 artist/album pairs from any other source
+>   (Last.fm, Spotify, a pasted list) against your Collection and Wantlist. Each album is in
+>   Collection (any Release of its Master, in any Format, with the matching Copies listed), on
+>   Wantlist, possible (a similar title under another Master, such as an anniversary edition) or
+>   absent. Names match ignoring case, diacritics, punctuation, a leading "The", "&" versus "and"
+>   and edition qualifiers such as "(Remastered)". It reads only your Collection and Wantlist
+>   and never searches the catalog per album.
 >
 > The server finds your username from the token. It keeps the Collection and the Wantlist in
 > memory and checks their first page on every call, so a Want or Copy you add on Discogs shows

@@ -33,6 +33,7 @@ from cratedigger_mcp.discogs import (
 )
 from cratedigger_mcp.formatting import (
     ResponseFormat,
+    album_matches,
     collection_copies,
     collection_summary,
     marketplace_prices,
@@ -41,6 +42,7 @@ from cratedigger_mcp.formatting import (
     search_results,
     wantlist_wants,
 )
+from cratedigger_mcp.matching import Album, match_albums
 from cratedigger_mcp.settings import Settings
 
 INSTRUCTIONS = """\
@@ -431,6 +433,49 @@ def create_server(
             raise tool_error(error) from None
         query = query.strip()
         return wantlist_wants(wantlist, select_wants(wantlist, query), query, limit, page)
+
+    @mcp.tool(
+        title="Match Albums Against My Discogs Collection",
+        annotations=READ_ONLY,
+        output_schema=None,
+    )
+    async def discogs_match_collection(
+        ctx: Context,
+        albums: Annotated[
+            list[Album],
+            Field(
+                description="1 to 200 albums as another source names them, e.g. "
+                '[{"artist": "The Beatles", "title": "Abbey Road (Remastered)"}].',
+                min_length=1,
+                max_length=200,
+            ),
+        ],
+    ) -> str:
+        """Check a list of albums from another source against the Owner's Collection and Wantlist.
+
+        Use it for "which of these albums do I have": albums from Last.fm or Spotify listening
+        history, a playlist or a pasted list, up to 200 per call. One line per album: in
+        Collection (with the Release and Format of each matching Copy, so vinyl tells apart
+        from CD), on Wantlist, possible (naming the candidate) or absent. An album is in the
+        Collection when the Owner has any Release of its Master, in any Format; Releases
+        without a Master match on artist and title. Names match ignoring case, diacritics,
+        punctuation, a leading "The", "&" versus "and" and edition qualifiers such as
+        Remastered, Deluxe, Expanded, Anniversary or Mono. A possible match is a Release of the
+        same artist whose title contains the album's title or is contained in it, under
+        another Master. It reads only the Owner's Collection and Wantlist, never the catalog:
+        do not call discogs_search album by album, and use discogs_list_collection to browse.
+        """
+        client = discogs_client(ctx)
+        try:
+            collection = await cache.revalidate(
+                ("collection",), OWNER_SNAPSHOT_TTL, client.get_collection
+            )
+            wantlist = await cache.revalidate(
+                ("wantlist",), OWNER_SNAPSHOT_TTL, client.get_wantlist
+            )
+        except DiscogsError as error:
+            raise tool_error(error) from None
+        return album_matches(match_albums(albums, collection, wantlist), collection, wantlist)
 
     @mcp.tool(title="Summarize My Discogs Collection", annotations=READ_ONLY, output_schema=None)
     async def discogs_collection_summary(ctx: Context) -> str:

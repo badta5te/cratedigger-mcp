@@ -67,6 +67,13 @@ async def test_tool_catalog_matches_the_contract(client: Client[Any]) -> None:
                 "open_world": True,
             },
             {
+                "name": "discogs_match_collection",
+                "title": "Match Albums Against My Discogs Collection",
+                "read_only": True,
+                "destructive": None,
+                "open_world": True,
+            },
+            {
                 "name": "discogs_search",
                 "title": "Search Discogs Catalog",
                 "read_only": True,
@@ -127,6 +134,14 @@ async def test_wantlist_listing_points_to_the_other_tools(client: Client[Any]) -
 
     description = tools["discogs_list_wantlist"].description or ""
     for term in ("artist and title text only", "discogs_search", "discogs_list_collection"):
+        assert term in description
+
+
+async def test_match_description_says_how_albums_match(client: Client[Any]) -> None:
+    tools = {tool.name: tool for tool in await client.list_tools()}
+
+    description = tools["discogs_match_collection"].description or ""
+    for term in ("up to 200", "any Release of its Master", "possible", "discogs_search"):
         assert term in description
 
 
