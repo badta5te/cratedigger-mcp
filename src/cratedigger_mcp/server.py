@@ -29,6 +29,7 @@ from cratedigger_mcp.discogs import (
     MarketplaceCheck,
     MasterReleaseSort,
     NotFoundError,
+    Release,
     SearchType,
     UnauthorizedError,
     Want,
@@ -44,6 +45,8 @@ from cratedigger_mcp.formatting import (
     master_releases,
     release_card,
     search_results,
+    want_added,
+    want_removed,
     wantlist_prices,
     wantlist_wants,
 )
@@ -57,9 +60,27 @@ catalog number, Format, country, year, matrix/runout and barcode identifiers), M
 prices of Releases, and the Owner's own Collection and Wantlist on Discogs. \
 Every response carries the release_id or master_id needed for the next call. \
 To check a list of albums from another source (listening history, playlists) against the \
-Owner's shelf, use discogs_match_collection rather than searching album by album."""
+Owner's shelf, use discogs_match_collection rather than searching album by album. \
+The Collection is read-only. Wants are added with discogs_wantlist_add and removed, only \
+when the Owner asks, with discogs_wantlist_remove."""
 
 READ_ONLY = {"readOnlyHint": True, "openWorldHint": True}
+# Adding a Want that is already there changes nothing, and nothing is lost.
+WANTLIST_ADD = {
+    "readOnlyHint": False,
+    "destructiveHint": False,
+    "idempotentHint": True,
+    "openWorldHint": True,
+}
+# Removing a Want loses when it was added: Claude asks the Owner before every call.
+WANTLIST_REMOVE = {
+    "readOnlyHint": False,
+    "destructiveHint": True,
+    "openWorldHint": True,
+}
+REQUIRES_CONFIRMATION = {"anthropic/requiresUserInteraction": True}
+# The cache key of the Wantlist snapshot, dropped after every change made through the server.
+WANTLIST_KEY = ("wantlist",)
 
 # The most Wants discogs_wantlist_prices checks in one call: one Discogs request each, so that
 # the call stays within the rate limit and Claude's 240 s tool call timeout.
@@ -107,6 +128,19 @@ def tool_error(error: DiscogsError) -> ToolError:
     return ToolError(str(error))
 
 
+def release_not_found(release_id: int) -> ToolError:
+    return ToolError(
+        f"Release {release_id} not found on Discogs. Use discogs_search to find the release_id."
+    )
+
+
+def not_wanted(release_id: int, owner: str) -> ToolError:
+    return ToolError(
+        f"Release {release_id} is not on the Wantlist of {owner}. "
+        "Use discogs_list_wantlist to find the release_id of the Want."
+    )
+
+
 def create_server(
     settings: Settings,
     transport: httpx2.AsyncBaseTransport | None = None,
@@ -146,8 +180,20 @@ def create_server(
         """The Wantlist snapshot, checked against Discogs (ADR-0003)."""
         try:
             return await cache.revalidate(
-                ("wantlist",), OWNER_SNAPSHOT_TTL, discogs_client(ctx).get_wantlist
+                WANTLIST_KEY, OWNER_SNAPSHOT_TTL, discogs_client(ctx).get_wantlist
             )
+        except DiscogsError as error:
+            raise tool_error(error) from None
+
+    async def catalog_release(ctx: Context, release_id: int) -> Release:
+        """A Release from the catalog, kept for an hour."""
+        client = discogs_client(ctx)
+        try:
+            return await cache.get_or_load(
+                ("release", release_id), CATALOG_TTL, lambda: client.get_release(release_id)
+            )
+        except NotFoundError:
+            raise release_not_found(release_id) from None
         except DiscogsError as error:
             raise tool_error(error) from None
 
@@ -183,19 +229,7 @@ def create_server(
         Do not use it to find a Release by name (use discogs_search) or for prices
         (use discogs_get_prices).
         """
-        try:
-            client = discogs_client(ctx)
-            release = await cache.get_or_load(
-                ("release", release_id), CATALOG_TTL, lambda: client.get_release(release_id)
-            )
-        except NotFoundError:
-            raise ToolError(
-                f"Release {release_id} not found on Discogs. "
-                "Use discogs_search to find the release_id."
-            ) from None
-        except DiscogsError as error:
-            raise tool_error(error) from None
-        return release_card(release, response_format)
+        return release_card(await catalog_release(ctx, release_id), response_format)
 
     @mcp.tool(title="Search Discogs Catalog", annotations=READ_ONLY, output_schema=None)
     async def discogs_search(
@@ -513,6 +547,70 @@ def create_server(
         return wantlist_prices(
             wantlist, chosen, checked, query, chosen_currency, max_price, limit, page
         )
+
+    @mcp.tool(title="Add to My Discogs Wantlist", annotations=WANTLIST_ADD, output_schema=None)
+    async def discogs_wantlist_add(
+        ctx: Context,
+        release_id: Annotated[
+            int, Field(description="Discogs release_id of the Release to want, e.g. 249504.", gt=0)
+        ],
+    ) -> str:
+        """Add a Release (one specific pressing) to the Owner's own Discogs Wantlist as a Want.
+
+        Use it when the Owner asks to want, save or track a Release found with discogs_search,
+        discogs_get_release or discogs_list_master_releases. Adding a Release that is already
+        on the Wantlist succeeds and changes nothing. Returns a short card of the Release. It
+        never changes the Collection. Do not use it to find a Release by name (use
+        discogs_search) or to add a Master: pick one of its Releases first.
+        """
+        release = await catalog_release(ctx, release_id)
+        wantlist = await owner_wantlist(ctx)
+        # Already wanted: no write, so a retry is harmless and the Want stays as it is.
+        existing = wantlist.want(release_id)
+        if existing is None:
+            try:
+                await discogs_client(ctx).add_want(release_id)
+            except NotFoundError:
+                raise release_not_found(release_id) from None
+            except DiscogsError as error:
+                raise tool_error(error) from None
+            finally:
+                cache.drop(WANTLIST_KEY)
+        return want_added(release, wantlist.owner, existing)
+
+    @mcp.tool(
+        title="Remove from My Discogs Wantlist",
+        annotations=WANTLIST_REMOVE,
+        meta=REQUIRES_CONFIRMATION,
+        output_schema=None,
+    )
+    async def discogs_wantlist_remove(
+        ctx: Context,
+        release_id: Annotated[
+            int, Field(description="Discogs release_id of the Want to remove, e.g. 249504.", gt=0)
+        ],
+    ) -> str:
+        """Remove a Want from the Owner's own Discogs Wantlist, by the release_id of its Release.
+
+        Use it only when the Owner asks to remove, drop or delete a Want, and confirm the
+        Release with them first: the Want's date added is lost. Find the release_id with
+        discogs_list_wantlist. A Release that is not on the Wantlist is an error. It never
+        changes the Collection. Do not use it to tidy up the Wantlist on your own, or because a
+        Want is now in the Collection, unless the Owner asks.
+        """
+        wantlist = await owner_wantlist(ctx)
+        want = wantlist.want(release_id)
+        if want is None:
+            raise not_wanted(release_id, wantlist.owner)
+        try:
+            await discogs_client(ctx).remove_want(release_id)
+        except NotFoundError:
+            raise not_wanted(release_id, wantlist.owner) from None
+        except DiscogsError as error:
+            raise tool_error(error) from None
+        finally:
+            cache.drop(WANTLIST_KEY)
+        return want_removed(want, wantlist.owner)
 
     @mcp.tool(
         title="Match Albums Against My Discogs Collection",

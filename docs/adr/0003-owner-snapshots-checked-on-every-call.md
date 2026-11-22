@@ -13,6 +13,6 @@ We decided every call fetches the first page again, newest added first. If the t
 ## Consequences
 
 - A repeated question costs one request for the Wantlist and two for the Collection, whatever their size. A Wantlist of up to 100 Wants is always fully current, and so are the Copies of a Collection of up to 100 Copies.
-- An addition changes the first page and a removal changes the total, so both show at once. Wants added or removed through this server's planned Wantlist tools will show the same way, with no explicit invalidation.
+- An addition changes the first page and a removal changes the total, so both show at once. Wants added or removed through `discogs_wantlist_add` and `discogs_wantlist_remove` show the same way, and those tools also drop the Wantlist snapshot, so the next listing fetches the whole Wantlist again.
 - In a Collection of more than 100 Copies, a change to an older Copy that keeps every folder's count, such as a new grade or two Copies swapping folders, shows only after the 5-minute reload. The Collection fields themselves (a renamed or new custom field) are fetched only on a full reload, in a Collection of any size.
 - `discogs_collection_summary` is not cached: it costs two requests and is always current.

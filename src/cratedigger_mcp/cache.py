@@ -60,6 +60,10 @@ class TtlCache:
             return value
         return self._store(key, ttl, value)
 
+    def drop(self, key: Hashable) -> None:
+        """Forget the value for `key`, so that the next call loads it afresh."""
+        self._entries.pop(key, None)
+
     def _store[T](self, key: Hashable, ttl: timedelta, value: T) -> T:
         """Keep `value` for `ttl` from now."""
         loaded_at = self._clock.now()

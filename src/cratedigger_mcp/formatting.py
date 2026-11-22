@@ -83,10 +83,7 @@ def attribution(url: str) -> str:
 
 def release_card(release: Release, response_format: ResponseFormat = "concise") -> str:
     lines = [
-        f"{release.title} — {artist_credit(release.artists)} [release_id={release.id}]",
-        f"Label: {_labels(release)}",
-        f"Format: {_formats(release.formats)}",
-        f"Country: {release.country or 'unknown'} · Year: {release.year or 'unknown'}",
+        *_release_summary(release),
         "Master: "
         + (
             f"master_id={release.master_id}"
@@ -100,8 +97,51 @@ def release_card(release: Release, response_format: ResponseFormat = "concise") 
     ]
     if response_format == "detailed":
         lines += ["", *_identifiers(release), "", *_notes(release.notes)]
-    lines += ["", attribution(release.uri or f"https://www.discogs.com/release/{release.id}")]
+    lines += ["", attribution(_release_url(release))]
     return "\n".join(lines)
+
+
+def want_added(release: Release, owner: str, existing: Want | None) -> str:
+    """The short card of a Release put on the Wantlist, or already there as `existing`."""
+    heading = (
+        f"Already on the Wantlist of {owner} since {existing.date_added:%Y-%m-%d}; nothing changed:"
+        if existing
+        else f"Added to the Wantlist of {owner}:"
+    )
+    return "\n".join(
+        [
+            heading,
+            *_release_summary(release),
+            "",
+            attribution(_release_url(release)),
+        ]
+    )
+
+
+def want_removed(want: Want, owner: str) -> str:
+    """The line of a Want just taken off the Wantlist."""
+    return "\n".join(
+        [
+            f"Removed from the Wantlist of {owner}:",
+            _want_line(want),
+            "",
+            attribution(wantlist_url(owner)),
+        ]
+    )
+
+
+def _release_summary(release: Release) -> list[str]:
+    """The lines that say which Release this is: title, label, Format, country and year."""
+    return [
+        f"{release.title} — {artist_credit(release.artists)} [release_id={release.id}]",
+        f"Label: {_labels(release)}",
+        f"Format: {_formats(release.formats)}",
+        f"Country: {release.country or 'unknown'} · Year: {release.year or 'unknown'}",
+    ]
+
+
+def _release_url(release: Release) -> str:
+    return release.uri or f"https://www.discogs.com/release/{release.id}"
 
 
 def marketplace_prices(checks: list[MarketplaceCheck], currency: Currency) -> str:

@@ -18,6 +18,8 @@ async def test_tool_catalog_matches_the_contract(client: Client[Any]) -> None:
             "read_only": tool.annotations.read_only_hint if tool.annotations else None,
             "destructive": tool.annotations.destructive_hint if tool.annotations else None,
             "open_world": tool.annotations.open_world_hint if tool.annotations else None,
+            "idempotent": tool.annotations.idempotent_hint if tool.annotations else None,
+            "asks_to_confirm": (tool.meta or {}).get("anthropic/requiresUserInteraction"),
         }
         for tool in sorted(tools, key=lambda tool: tool.name)
     ]
@@ -30,6 +32,8 @@ async def test_tool_catalog_matches_the_contract(client: Client[Any]) -> None:
                 "read_only": True,
                 "destructive": None,
                 "open_world": True,
+                "idempotent": None,
+                "asks_to_confirm": None,
             },
             {
                 "name": "discogs_get_prices",
@@ -37,6 +41,8 @@ async def test_tool_catalog_matches_the_contract(client: Client[Any]) -> None:
                 "read_only": True,
                 "destructive": None,
                 "open_world": True,
+                "idempotent": None,
+                "asks_to_confirm": None,
             },
             {
                 "name": "discogs_get_release",
@@ -44,6 +50,8 @@ async def test_tool_catalog_matches_the_contract(client: Client[Any]) -> None:
                 "read_only": True,
                 "destructive": None,
                 "open_world": True,
+                "idempotent": None,
+                "asks_to_confirm": None,
             },
             {
                 "name": "discogs_list_collection",
@@ -51,6 +59,8 @@ async def test_tool_catalog_matches_the_contract(client: Client[Any]) -> None:
                 "read_only": True,
                 "destructive": None,
                 "open_world": True,
+                "idempotent": None,
+                "asks_to_confirm": None,
             },
             {
                 "name": "discogs_list_master_releases",
@@ -58,6 +68,8 @@ async def test_tool_catalog_matches_the_contract(client: Client[Any]) -> None:
                 "read_only": True,
                 "destructive": None,
                 "open_world": True,
+                "idempotent": None,
+                "asks_to_confirm": None,
             },
             {
                 "name": "discogs_list_wantlist",
@@ -65,6 +77,8 @@ async def test_tool_catalog_matches_the_contract(client: Client[Any]) -> None:
                 "read_only": True,
                 "destructive": None,
                 "open_world": True,
+                "idempotent": None,
+                "asks_to_confirm": None,
             },
             {
                 "name": "discogs_match_collection",
@@ -72,6 +86,8 @@ async def test_tool_catalog_matches_the_contract(client: Client[Any]) -> None:
                 "read_only": True,
                 "destructive": None,
                 "open_world": True,
+                "idempotent": None,
+                "asks_to_confirm": None,
             },
             {
                 "name": "discogs_search",
@@ -79,6 +95,17 @@ async def test_tool_catalog_matches_the_contract(client: Client[Any]) -> None:
                 "read_only": True,
                 "destructive": None,
                 "open_world": True,
+                "idempotent": None,
+                "asks_to_confirm": None,
+            },
+            {
+                "name": "discogs_wantlist_add",
+                "title": "Add to My Discogs Wantlist",
+                "read_only": False,
+                "destructive": False,
+                "open_world": True,
+                "idempotent": True,
+                "asks_to_confirm": None,
             },
             {
                 "name": "discogs_wantlist_prices",
@@ -86,6 +113,17 @@ async def test_tool_catalog_matches_the_contract(client: Client[Any]) -> None:
                 "read_only": True,
                 "destructive": None,
                 "open_world": True,
+                "idempotent": None,
+                "asks_to_confirm": None,
+            },
+            {
+                "name": "discogs_wantlist_remove",
+                "title": "Remove from My Discogs Wantlist",
+                "read_only": False,
+                "destructive": True,
+                "open_world": True,
+                "idempotent": None,
+                "asks_to_confirm": True,
             },
         ]
     )
@@ -163,6 +201,17 @@ async def test_wantlist_prices_description_says_what_it_checks(client: Client[An
         "discogs_list_wantlist",
     ):
         assert term in description
+
+
+async def test_wantlist_change_descriptions_say_what_they_touch(client: Client[Any]) -> None:
+    tools = {tool.name: tool for tool in await client.list_tools()}
+
+    add = " ".join((tools["discogs_wantlist_add"].description or "").split())
+    for term in ("already on the Wantlist", "discogs_search", "never changes the Collection"):
+        assert term in add
+    remove = " ".join((tools["discogs_wantlist_remove"].description or "").split())
+    for term in ("only when the Owner asks", "confirm", "discogs_list_wantlist", "Collection"):
+        assert term in remove
 
 
 async def test_match_description_says_how_albums_match(client: Client[Any]) -> None:

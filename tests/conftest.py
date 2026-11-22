@@ -147,6 +147,17 @@ class FakeDiscogs:
         if self.non_json_body is not None:
             return httpx2.Response(200, headers=headers, text=self.non_json_body)
         parts = request.url.path.strip("/").split("/")
+        owner = self.identity["username"]
+        if request.method != "GET":
+            # Discogs takes writes to the Owner's Wantlist only from this server's tools.
+            if (
+                request.method in ("PUT", "DELETE")
+                and len(parts) == 4
+                and parts[:3] == ["users", owner, "wants"]
+                and parts[3].isdigit()
+            ):
+                return self._write_want(request.method, int(parts[3]), headers)
+            return httpx2.Response(405, headers=headers, json={"message": "Method not allowed."})
         if len(parts) == 2 and parts[0] == "releases" and parts[1].isdigit():
             release = self.releases.get(int(parts[1]))
             if release is None:
@@ -171,7 +182,7 @@ class FakeDiscogs:
             return self._marketplace_stats(int(parts[2]), request, headers)
         if parts == ["oauth", "identity"]:
             return httpx2.Response(200, headers=headers, json=self.identity)
-        if len(parts) >= 3 and parts[0] == "users" and parts[1] == self.identity["username"]:
+        if len(parts) >= 3 and parts[0] == "users" and parts[1] == owner:
             owned = self._owner_resource(parts[2:], request, headers)
             if owned is not None:
                 return owned
@@ -258,6 +269,42 @@ class FakeDiscogs:
         if parts == ["wants"]:
             return self._page(self.wantlist, "wants", request, headers)
         return None
+
+    def _write_want(self, method: str, release_id: int, headers: dict[str, str]) -> httpx2.Response:
+        """Add (PUT) or remove (DELETE) a Want, as the Discogs API documentation describes it:
+        no writes were captured, so the status codes and bodies come from the docs."""
+        wanted = next((want for want in self.wantlist if want["id"] == release_id), None)
+        if method == "DELETE":
+            if wanted is None:
+                return httpx2.Response(
+                    404, headers=headers, json={"message": "The requested resource was not found."}
+                )
+            self.wantlist.remove(wanted)
+            return httpx2.Response(204, headers=headers)
+        release = self.releases.get(release_id)
+        if release is None:
+            return httpx2.Response(
+                404, headers=headers, json=load_fixture("error_404_release.json")
+            )
+        if wanted is None:
+            wanted = {
+                "id": release_id,
+                "rating": 0,
+                "notes": "",
+                "date_added": self.clock.now().isoformat(),
+                "basic_information": {
+                    "id": release_id,
+                    "master_id": release.get("master_id") or 0,
+                    "title": release["title"],
+                    "year": release.get("year", 0),
+                    "artists": release.get("artists", []),
+                    "labels": release.get("labels", []),
+                    "formats": release.get("formats", []),
+                },
+            }
+            self.wantlist.insert(0, wanted)
+        body = {key: value for key, value in wanted.items() if key != "date_added"}
+        return httpx2.Response(201, headers=headers, json=body)
 
     def _page(
         self, entries: list[Any], key: str, request: httpx2.Request, headers: dict[str, str]

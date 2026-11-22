@@ -33,6 +33,12 @@ stores nothing on disk.
 >   `max_price` and filtered by artist or title text. Wants with nothing for sale are listed
 >   apart, and the response says which page to check next. It shares the one-hour price cache
 >   with `discogs_get_prices`. There is no price watch: Discogs' own Wantlister sends alerts.
+> - `discogs_wantlist_add`: adds a Release to your Wantlist by `release_id` and returns a short
+>   card of it. Adding a Release that is already wanted succeeds and changes nothing.
+> - `discogs_wantlist_remove`: removes a Want by `release_id`. It is marked destructive and
+>   asks for your confirmation on every call; a Release that is not on the Wantlist is an
+>   error. Both Wantlist tools drop the cached Wantlist, so the next listing is fetched afresh.
+>   No tool changes your Collection.
 > - `discogs_collection_summary`: the number of Copies in each folder and Discogs'
 >   minimum/median/maximum estimate of the Collection's value.
 > - `discogs_match_collection`: checks 1 to 200 artist/album pairs from any other source

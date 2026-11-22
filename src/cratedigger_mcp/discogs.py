@@ -314,6 +314,9 @@ class Wantlist:
     owner: str
     wants: list[Want]
 
+    def want(self, release_id: int) -> Want | None:
+        return next((want for want in self.wants if want.id == release_id), None)
+
 
 class _Pacer:
     """Slows requests down when the X-Discogs-Ratelimit-* headers report little quota left.
@@ -380,6 +383,10 @@ def _same_start[E](pagination: Pagination, first_page: list[E], previous: list[E
 
 def _collection_path(owner: str) -> str:
     return f"/users/{quote(owner, safe='')}/collection"
+
+
+def _wants_path(owner: str) -> str:
+    return f"/users/{quote(owner, safe='')}/wants"
 
 
 def build_http_client(
@@ -477,12 +484,22 @@ class DiscogsClient:
         added or removed: `previous` itself is returned and the later pages are not fetched.
         """
         owner = await self.owner_username()
-        path = f"/users/{quote(owner, safe='')}/wants"
+        path = _wants_path(owner)
         first = await self._get(path, WantlistPage, _full_page(1))
         if previous is not None and _same_start(first.pagination, first.wants, previous.wants):
             return previous
         wants = await self._every_page(path, WantlistPage, first, lambda found: found.wants)
         return Wantlist(owner, wants)
+
+    async def add_want(self, release_id: int) -> None:
+        """Put a Release on the Owner's Wantlist."""
+        owner = await self.owner_username()
+        await self._call("PUT", f"{_wants_path(owner)}/{release_id}")
+
+    async def remove_want(self, release_id: int) -> None:
+        """Take a Want off the Owner's Wantlist. Discogs documents HTTP 404 when it is not there."""
+        owner = await self.owner_username()
+        await self._call("DELETE", f"{_wants_path(owner)}/{release_id}")
 
     async def get_collection_summary(self) -> CollectionSummary:
         """The Collection's folders with their counts and Discogs' estimate of its value."""
@@ -504,12 +521,25 @@ class DiscogsClient:
     async def _get[M: BaseModel](
         self, path: str, model: type[M], params: QueryParams | None = None
     ) -> M:
-        response = await self._send(path, params)
+        response = await self._call("GET", path, params)
+        try:
+            return model.model_validate_json(response.content)
+        except ValidationError as error:  # not JSON, or not the shape the model expects
+            logger.warning("Unexpected Discogs response for %s: %s", path, error)
+            raise DiscogsError(
+                f"Discogs sent an unexpected response for {path}. Try again later."
+            ) from None
+
+    async def _call(
+        self, method: str, path: str, params: QueryParams | None = None
+    ) -> httpx2.Response:
+        """A successful response to the request, retried while Discogs answers HTTP 429."""
+        response = await self._send(method, path, params)
         for delay in RETRY_DELAYS_SECONDS:
             if response.status_code != 429:
                 break
             await self._clock.sleep(delay)
-            response = await self._send(path, params)
+            response = await self._send(method, path, params)
         if response.status_code == 429:
             raise RateLimitedError(
                 "Discogs is rate-limiting requests (HTTP 429). Try again in a minute."
@@ -522,18 +552,12 @@ class DiscogsClient:
             raise DiscogsError(
                 f"Discogs answered HTTP {response.status_code} for {path}. Try again later."
             )
-        try:
-            return model.model_validate_json(response.content)
-        except ValidationError as error:  # not JSON, or not the shape the model expects
-            logger.warning("Unexpected Discogs response for %s: %s", path, error)
-            raise DiscogsError(
-                f"Discogs sent an unexpected response for {path}. Try again later."
-            ) from None
+        return response
 
-    async def _send(self, path: str, params: QueryParams | None) -> httpx2.Response:
+    async def _send(self, method: str, path: str, params: QueryParams | None) -> httpx2.Response:
         await self._pacer.wait_turn()
         try:
-            response = await self._http.get(path, params=params)
+            response = await self._http.request(method, path, params=params)
         except httpx2.RequestError as error:
             raise DiscogsError(
                 f"Could not reach Discogs ({type(error).__name__}). Try again in a moment."
