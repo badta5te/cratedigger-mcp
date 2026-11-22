@@ -32,10 +32,11 @@ _FILLERS = frozenset(
     {"super", "special", "collector", "collectors", "limited", "version", "track", "tracks"}
     | {"digital", "original", "mix", "the", "and", "remix"}
 )
-# Words a number belongs to as part of the title, as in "Vol. 2 Deluxe".
-_NUMBERED = frozenset({"vol", "volume", "part", "pt", "no", "chapter", "book", "disc"})
-_NUMBER = re.compile(r"\d+")
-_ORDINAL = re.compile(r"\d+(st|nd|rd|th)?")
+# A year or an ordinal goes with a qualifier, as in "2011 Remaster" or "50th Anniversary";
+# another number belongs to the title, as in "Chicago 17" or "Vol. 2 Deluxe".
+_YEAR_OR_ORDINAL = re.compile(r"(19|20)\d\d|\d+(st|nd|rd|th)")
+# How other sources credit a compilation that Discogs credits to "Various".
+_VARIOUS = frozenset({"variousartists", "va"})
 _BRACKETED = re.compile(r"[(\[{]([^()\[\]{}]*)[)\]}]")
 _DISAMBIGUATION = re.compile(r" \(\d+\)$")
 # Letters that Unicode does not decompose into a base letter and a mark.
@@ -87,7 +88,7 @@ def match_albums(
 
 
 def _match(album: Album, copies: "_Index[Copy]", wants: "_Index[Want]") -> AlbumMatch:
-    artist = _key(_words(album.artist))
+    artist = _artist_key(album.artist)
     title = _title_words(album.title)
     if not artist or not title:
         return AlbumMatch(album, "absent")
@@ -162,7 +163,12 @@ def _artist_keys(release: CollectionRelease) -> set[str]:
     names = [credit]
     for artist in release.artists:
         names += [_DISAMBIGUATION.sub("", artist.name), artist.anv]
-    return {key for name in names if (key := _key(_words(name)))}
+    return {key for name in names if (key := _artist_key(name))}
+
+
+def _artist_key(name: str) -> str:
+    key = _key(_words(name))
+    return "various" if key in _VARIOUS else key
 
 
 def _title_words(title: str) -> tuple[str, ...]:
@@ -178,9 +184,10 @@ def _without_trailing_qualifiers(words: tuple[str, ...]) -> tuple[str, ...]:
     """`words` without trailing qualifiers such as "Remastered 2009" or "Deluxe Edition", unless
     only qualifiers would be left, as in an album called "Mono" or "Deluxe"."""
     end = len(words)
-    while end > 1 and _qualifier_or_filler(words[end - 1], before=words[end - 2]):
+    while end > 1 and _qualifier_or_filler(words[end - 1]):
         end -= 1
-    if (end == 1 and _qualifier_or_filler(words[0])) or not _qualifies(words[end:]):
+    only_qualifiers = end == 1 and _qualifier_or_filler(words[0]) and not words[0].isdigit()
+    if only_qualifiers or not _qualifies(words[end:]):
         return words
     return words[:end]
 
@@ -189,14 +196,12 @@ def _qualifies(words: Iterable[str]) -> bool:
     return any(word in _QUALIFIERS or word.startswith("remaster") for word in words)
 
 
-def _qualifier_or_filler(word: str, before: str = "") -> bool:
-    if _NUMBER.fullmatch(word) and before in _NUMBERED:
-        return False
+def _qualifier_or_filler(word: str) -> bool:
     return (
         word in _QUALIFIERS
         or word in _FILLERS
         or word.startswith("remaster")
-        or _ORDINAL.fullmatch(word) is not None
+        or _YEAR_OR_ORDINAL.fullmatch(word) is not None
     )
 
 

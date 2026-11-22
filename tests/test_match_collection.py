@@ -25,8 +25,8 @@ async def test_an_album_counts_as_in_collection_through_any_release_of_its_maste
         "Matched 1 album against the Collection of example-owner (5 Copies) and its Wantlist "
         "(3 Wants): 1 in Collection.\n"
         "1. Rick Astley — Never Gonna Give You Up: in Collection: Never Gonna Give You Up · "
-        "1987 · Vinyl · 2 Copies [release_id=249504]; Original Hit Singles · 1989 · CD "
-        "[release_id=1570630]\n"
+        '1987 · Vinyl, 7", Single · 2 Copies [release_id=249504]; Original Hit Singles · 1989 · '
+        "CD, Single [release_id=1570630]\n"
         "\n"
         "Use discogs_get_release with a release_id for the full card.\n"
         "\n"
@@ -50,7 +50,8 @@ def add_copy(
     release = added["basic_information"]
     release.update(id=release_id, title=title, master_id=master_id, year=year)
     release["artists"] = [{"name": artist, "anv": "", "join": "", "id": 1}]
-    release["formats"] = [{"name": medium, "qty": "1", "descriptions": ["LP"]}]
+    descriptions = ["LP", "Album"] if medium == "Vinyl" else ["Album"]
+    release["formats"] = [{"name": medium, "qty": "1", "descriptions": descriptions}]
     discogs.collection.append(added)
 
 
@@ -80,7 +81,7 @@ async def test_case_a_leading_the_and_edition_qualifiers_are_ignored(
     text = await match(client, (artist, title))
 
     assert album_line(text) == (
-        f"1. {artist} — {title}: in Collection: Abbey Road · 1969 · Vinyl [release_id=101]; "
+        f"1. {artist} — {title}: in Collection: Abbey Road · 1969 · Vinyl, LP [release_id=101]; "
         "Abbey Road (Remastered) · 2009 · CD [release_id=102]"
     )
 
@@ -118,7 +119,7 @@ async def test_a_similar_title_under_another_master_is_possible(
     text = await match(client, ("Radiohead", "OK Computer"))
 
     assert album_line(text) == (
-        "1. Radiohead — OK Computer: possible: OK Computer OKNOTOK 1997 2017 · 2017 · Vinyl · "
+        "1. Radiohead — OK Computer: possible: OK Computer OKNOTOK 1997 2017 · 2017 · Vinyl, LP · "
         "in Collection [release_id=301]"
     )
     assert text.splitlines()[0].endswith(": 1 possible.")
@@ -142,7 +143,7 @@ async def test_a_release_without_a_master_matches_on_artist_and_title_alone(
 
     # The Want "First On Your Block" has no Master either and stays out.
     assert album_line(text) == (
-        "1. Rick Astley — Wonderful You: in Collection: Wonderful You · 1991 · CD "
+        "1. Rick Astley — Wonderful You: in Collection: Wonderful You · 1991 · CD, Single "
         "[release_id=3499619]"
     )
 
@@ -243,8 +244,8 @@ async def test_a_long_list_of_matching_releases_is_cut_short(
 
     assert album_line(text) == (
         "1. Miles Davis — Kind of Blue (Legacy Edition): in Collection: Kind Of Blue · 1959 · "
-        "Vinyl [release_id=501]; Kind Of Blue · 1960 · Vinyl [release_id=502]; Kind Of Blue · "
-        "1961 · Vinyl [release_id=503]; and 2 more Releases"
+        "Vinyl, LP [release_id=501]; Kind Of Blue · 1960 · Vinyl, LP [release_id=502]; "
+        "Kind Of Blue · 1961 · Vinyl, LP [release_id=503]; and 2 more Releases"
     )
 
 
@@ -258,7 +259,7 @@ async def test_a_reissue_under_the_same_master_counts_whatever_its_title(
 
     assert album_line(text) == (
         "1. Fleetwood Mac — Rumours (Super Deluxe): in Collection: Rumours (Expanded Edition) · "
-        "2004 · CD [release_id=601]; Rumours / The Alternate Album · 2013 · Vinyl "
+        "2004 · CD [release_id=601]; Rumours / The Alternate Album · 2013 · Vinyl, LP "
         "[release_id=602]"
     )
 
@@ -273,7 +274,7 @@ async def test_mono_stereo_and_bonus_track_editions_are_the_same_album(
 
     text = await match(client, ("The Beach Boys", title))
 
-    assert ": in Collection: Pet Sounds · 1966 · Vinyl [release_id=701]" in album_line(text)
+    assert ": in Collection: Pet Sounds · 1966 · Vinyl, LP [release_id=701]" in album_line(text)
 
 
 async def test_a_shorter_title_under_another_master_is_possible_too(
@@ -284,7 +285,7 @@ async def test_a_shorter_title_under_another_master_is_possible_too(
     text = await match(client, ("Radiohead", "OK Computer OKNOTOK 1997 2017"))
 
     assert album_line(text) == (
-        "1. Radiohead — OK Computer OKNOTOK 1997 2017: possible: OK Computer · 1997 · Vinyl · "
+        "1. Radiohead — OK Computer OKNOTOK 1997 2017: possible: OK Computer · 1997 · Vinyl, LP · "
         "in Collection [release_id=801]"
     )
 
@@ -305,6 +306,10 @@ async def test_a_shorter_title_under_another_master_is_possible_too(
             "in Collection",
         ),
         (("Someone", "Greatest Hits Vol. 2"), ("Someone", "Greatest Hits Vol. 3"), "absent"),
+        (("Prince", "1999"), ("Prince", "1999 - Remastered"), "in Collection"),
+        (("Chicago", "Chicago"), ("Chicago", "Chicago 17 - Remastered"), "possible"),
+        (("Chicago", "Chicago 17"), ("Chicago", "Chicago 17 (2011 Remaster)"), "in Collection"),
+        (("Various", "Nuggets"), ("Various Artists", "Nuggets"), "in Collection"),
     ],
 )
 async def test_names_made_of_symbols_scripts_or_qualifiers_keep_their_meaning(

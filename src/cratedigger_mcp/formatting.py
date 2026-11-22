@@ -58,6 +58,10 @@ COLLECTION_SORTS: dict[CollectionSort, str] = {
 }
 
 NOTES_LIMIT = 1500
+# The Format descriptions a matched Release keeps: its size and kind.
+SIZE_AND_KIND = frozenset(
+    {'7"', '10"', '12"', "LP", "EP", "Single", "Maxi-Single", "Mini-Album", "Compilation"}
+)
 # How many Releases a matched album lists before "and N more".
 MATCHED_RELEASES_SHOWN = 3
 _DISAMBIGUATION = re.compile(r" \(\d+\)$")
@@ -412,8 +416,14 @@ def _first_few(items: list[str]) -> str:
 
 
 def _medium_names(formats: list[Format]) -> str:
-    """The Formats without their details, e.g. "2 × Vinyl + CD"."""
-    return " + ".join(_quantity(medium) + medium.name for medium in formats) or "unknown"
+    """The Formats with their size and kind only, e.g. '2 × Vinyl, LP + CD' or 'Vinyl, 7", Single',
+    so that a single tells apart from the album of the same name."""
+    rendered = [
+        _quantity(medium)
+        + ", ".join([medium.name, *(part for part in medium.descriptions if part in SIZE_AND_KIND)])
+        for medium in formats
+    ]
+    return " + ".join(rendered) or "unknown"
 
 
 def _quantity(medium: Format) -> str:
