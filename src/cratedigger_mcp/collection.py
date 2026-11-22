@@ -1,19 +1,26 @@
-"""Choosing Copies from the Collection snapshot: by text, by folder and in a sort order.
+"""Choosing Copies from the Collection snapshot (by text, by folder and in a sort order) and
+Wants from the Wantlist snapshot (by text).
 
-Discogs has no text filter for the Collection, so all of it happens locally over the snapshot,
-and asking again with other choices costs no request.
+Discogs has no text filter for the Collection or the Wantlist, so all of it happens locally over
+the snapshots, and asking again with other choices costs no request.
 """
 
-from cratedigger_mcp.discogs import Collection, CollectionSort, Copy
+from cratedigger_mcp.discogs import (
+    Collection,
+    CollectionRelease,
+    CollectionSort,
+    Copy,
+    Want,
+    Wantlist,
+)
 from cratedigger_mcp.formatting import artist_credit
 
 
-def matches_query(query: str, copy: Copy) -> bool:
-    """Whether every word of `query` occurs in the artist or title of `copy`, ignoring case.
+def matches_query(query: str, release: CollectionRelease) -> bool:
+    """Whether every word of `query` occurs in the artist or title of `release`, ignoring case.
 
     The artists count both as credited on the Release and under their own Discogs names.
     """
-    release = copy.release
     names = [artist.name for artist in release.artists]
     haystack = " ".join([artist_credit(release.artists), *names, release.title]).casefold()
     return all(word in haystack for word in query.casefold().split())
@@ -26,7 +33,7 @@ def select_copies(
     chosen = [
         copy
         for copy in collection.copies
-        if folder_id in (0, copy.folder_id) and matches_query(query, copy)
+        if folder_id in (0, copy.folder_id) and matches_query(query, copy.release)
     ]
     match sort:
         case "added":
@@ -37,6 +44,12 @@ def select_copies(
             return sorted(chosen, key=_artist_and_title)
         case "title":
             return sorted(chosen, key=lambda copy: _artist_and_title(copy)[::-1])
+
+
+def select_wants(wantlist: Wantlist, query: str) -> list[Want]:
+    """The Wants whose artist or title match `query`, newest first."""
+    chosen = [want for want in wantlist.wants if matches_query(query, want.release)]
+    return sorted(chosen, key=lambda want: want.date_added, reverse=True)
 
 
 def _artist_and_title(copy: Copy) -> tuple[str, str]:

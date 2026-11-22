@@ -241,7 +241,7 @@ class CopyNote(_Model):
 
 
 class CollectionRelease(_Model):
-    """The Release a Copy is of, as the Collection lists it."""
+    """The Release a Copy or a Want is of, as the Collection and the Wantlist list it."""
 
     id: int
     title: str = ""
@@ -263,6 +263,17 @@ class Copy(_Model):
 class CollectionPage(_Model):
     pagination: Pagination
     releases: list[Copy] = Field(default_factory=list)
+
+
+class Want(_Model):
+    id: int  # the release_id
+    date_added: datetime
+    release: CollectionRelease = Field(alias="basic_information")
+
+
+class WantlistPage(_Model):
+    pagination: Pagination
+    wants: list[Want] = Field(default_factory=list)
 
 
 class CollectionValue(_Model):
@@ -292,6 +303,14 @@ class CollectionSummary:
     owner: str
     folders: list[Folder]
     value: CollectionValue
+
+
+@dataclass(frozen=True)
+class Wantlist:
+    """Every Want on the Owner's Wantlist, newest first."""
+
+    owner: str
+    wants: list[Want]
 
 
 class _Pacer:
@@ -433,6 +452,21 @@ class DiscogsClient:
             copies += found.releases
             page, pages = page + 1, found.pagination.pages
         return Collection(owner, folders.folders, fields.fields, copies)
+
+    async def get_wantlist(self) -> Wantlist:
+        """Every Want on the Owner's Wantlist across all pages, newest first."""
+        owner = await self.owner_username()
+        wants: list[Want] = []
+        page, pages = 1, 1
+        while page <= pages:
+            found = await self._get(
+                f"/users/{quote(owner, safe='')}/wants",
+                WantlistPage,
+                {"per_page": FULL_PAGE_SIZE, "page": page, "sort": "added", "sort_order": "desc"},
+            )
+            wants += found.wants
+            page, pages = page + 1, found.pagination.pages
+        return Wantlist(owner, wants)
 
     async def get_collection_summary(self) -> CollectionSummary:
         """The Collection's folders with their counts and Discogs' estimate of its value."""

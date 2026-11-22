@@ -12,9 +12,9 @@ from fastmcp import Context, FastMCP
 from fastmcp.exceptions import ToolError
 from pydantic import Field, ValidationError
 
-from cratedigger_mcp.cache import CATALOG_TTL, COLLECTION_TTL, PRICE_TTL, TtlCache
+from cratedigger_mcp.cache import CATALOG_TTL, COLLECTION_TTL, PRICE_TTL, WANTLIST_TTL, TtlCache
 from cratedigger_mcp.clock import Clock, SystemClock
-from cratedigger_mcp.collection import select_copies
+from cratedigger_mcp.collection import select_copies, select_wants
 from cratedigger_mcp.discogs import (
     CollectionSort,
     Currency,
@@ -34,6 +34,7 @@ from cratedigger_mcp.formatting import (
     master_releases,
     release_card,
     search_results,
+    wantlist_wants,
 )
 from cratedigger_mcp.settings import Settings
 
@@ -392,6 +393,37 @@ def create_server(
             )
         chosen = select_copies(collection, query, folder_id, sort)
         return collection_copies(collection, chosen, query, folder, sort, limit, page)
+
+    @mcp.tool(title="List My Discogs Wantlist", annotations=READ_ONLY, output_schema=None)
+    async def discogs_list_wantlist(
+        ctx: Context,
+        query: Annotated[
+            str,
+            Field(
+                description="Only Wants whose artist or title contain every word of this "
+                "text, ignoring case, e.g. 'astley'."
+            ),
+        ] = "",
+        limit: Annotated[int, Field(description="Wants per page.", ge=1, le=50)] = 20,
+        page: Annotated[int, Field(description="Page of Wants, from 1.", ge=1)] = 1,
+    ) -> str:
+        """List the Wants on the Owner's own Discogs Wantlist: the Releases they want to get.
+
+        Use it for "what is on my Wantlist", "do I want anything by X" or "what did I add to
+        my Wantlist recently". Newest first and paged. Each line carries the Release, its
+        Format, label and catalog number, when it was added and the release_id. The query
+        matches artist and title text only: the lines carry no genres or styles, so a
+        query such as "jazz" finds only artists and titles containing the word. Do not use it
+        to find Releases in the catalog (use discogs_search) or to see what the Owner already
+        has (use discogs_list_collection).
+        """
+        client = discogs_client(ctx)
+        try:
+            wantlist = await cache.get_or_load(("wantlist",), WANTLIST_TTL, client.get_wantlist)
+        except DiscogsError as error:
+            raise tool_error(error) from None
+        query = query.strip()
+        return wantlist_wants(wantlist, select_wants(wantlist, query), query, limit, page)
 
     @mcp.tool(title="Summarize My Discogs Collection", annotations=READ_ONLY, output_schema=None)
     async def discogs_collection_summary(ctx: Context) -> str:

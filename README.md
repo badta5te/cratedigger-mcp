@@ -26,11 +26,13 @@ stores nothing on disk.
 >   by artist or title text, narrowed to one folder, sorted and paged. Each line carries the
 >   Release, its Format, its condition (Media and Sleeve grades) and the `release_id`, and marks
 >   Releases you have several Copies of.
+> - `discogs_list_wantlist`: the Wants on your Wantlist, newest first, filtered by artist or
+>   title text and paged. Each line carries the Release, its Format and the `release_id`.
 > - `discogs_collection_summary`: the number of Copies in each folder and Discogs'
 >   minimum/median/maximum estimate of the Collection's value.
 >
-> The server finds your username from the token, and keeps the Collection in memory for 15
-> minutes, so follow-up questions about it cost no Discogs requests.
+> The server finds your username from the token, and keeps the Collection and the Wantlist in
+> memory for 15 minutes, so follow-up questions about them cost no Discogs requests.
 >
 > And one prompt:
 >

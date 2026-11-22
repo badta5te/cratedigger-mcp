@@ -14,6 +14,7 @@ from cratedigger_mcp.discogs import (
     Artist,
     Collection,
     CollectionField,
+    CollectionRelease,
     CollectionSort,
     CollectionSummary,
     Copy,
@@ -31,6 +32,8 @@ from cratedigger_mcp.discogs import (
     SearchResult,
     SearchType,
     Track,
+    Want,
+    Wantlist,
 )
 
 ResponseFormat = Literal["concise", "detailed"]
@@ -297,26 +300,82 @@ def collection_summary(summary: CollectionSummary) -> str:
     )
 
 
+def wantlist_wants(
+    wantlist: Wantlist, chosen: list[Want], query: str, limit: int, page: int
+) -> str:
+    """One page of the chosen Wants, numbered across pages, with a next-page hint."""
+    footer = ["", attribution(wantlist_url(wantlist.owner))]
+    if not chosen:
+        if not query:
+            return "\n".join([f"The Wantlist of {wantlist.owner} holds no Wants.", *footer])
+        nothing = f'No Wants on the Wantlist of {wantlist.owner} match "{query}".'
+        return "\n".join([nothing + " Try fewer words or another spelling.", *footer])
+    pages = math.ceil(len(chosen) / limit)
+    if page > pages:
+        return "\n".join(
+            [
+                f"No Wants on page {page}: the list has {pages} pages of {limit}. "
+                "Use a lower page.",
+                *footer,
+            ]
+        )
+    heading = ", ".join(
+        [
+            f"Wantlist of {wantlist.owner}",
+            *([f'Wants matching "{query}"'] if query else []),
+            "newest first",
+        ]
+    )
+    first = (page - 1) * limit + 1
+    shown = chosen[first - 1 : first - 1 + limit]
+    last = first + len(shown) - 1
+    hint = _showing(first, last, len(chosen), page, pages)
+    hint += " Use discogs_get_release with a release_id for the full card."
+    lines = [
+        f"{heading}: page {page} of {pages} ({_wants(len(chosen))})",
+        *(f"{number}. {_want_line(want)}" for number, want in enumerate(shown, start=first)),
+        "",
+        hint,
+        *footer,
+    ]
+    return "\n".join(lines)
+
+
+def wantlist_url(owner: str) -> str:
+    return "https://www.discogs.com/wantlist?" + urlencode({"user": owner})
+
+
 def collection_url(owner: str) -> str:
     return f"https://www.discogs.com/user/{quote(owner, safe='')}/collection"
 
 
 def _copy_line(copy: Copy, copies_of_release: int, folder_name: str | None, condition: str) -> str:
-    release = copy.release
+    line = _listed_release_line(
+        copy.release,
+        f"added {copy.date_added:%Y-%m-%d}",
+        f"folder {folder_name}" if folder_name else "",
+        condition,
+    )
+    if copies_of_release > 1:
+        line += f" · one of {copies_of_release} Copies of this Release"
+    return line
+
+
+def _want_line(want: Want) -> str:
+    return _listed_release_line(want.release, f"added {want.date_added:%Y-%m-%d}")
+
+
+def _listed_release_line(release: CollectionRelease, *extra: str) -> str:
+    """Artist — title, year, Format, the first label and catalog number, then `extra`."""
     label = release.labels[0] if release.labels else None
     details = [
         f"{artist_credit(release.artists)} — {release.title}",
         str(release.year) if release.year else "",
         _formats(release.formats),
         " – ".join(filter(None, [label.name, label.catno])) if label else "",
-        f"added {copy.date_added:%Y-%m-%d}",
-        f"folder {folder_name}" if folder_name else "",
-        condition,
+        *extra,
     ]
-    line = " · ".join(filter(None, details)) + f" [release_id={release.id}]"
-    if copies_of_release > 1:
-        line += f" · one of {copies_of_release} Copies of this Release"
-    return line
+    return " · ".join(filter(None, details)) + f" [release_id={release.id}]"
 
 
 def _condition(copy: Copy, fields: list[CollectionField]) -> str:
@@ -345,6 +404,10 @@ def _folder_label(folder: Folder) -> str:
 
 def _copies(count: int) -> str:
     return f"{count} Cop{'y' if count == 1 else 'ies'}"
+
+
+def _wants(count: int) -> str:
+    return f"{count} Want{'' if count == 1 else 's'}"
 
 
 def _showing(first: int, last: int, total: int, page: int, pages: int) -> str:
