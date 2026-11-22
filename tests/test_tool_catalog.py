@@ -80,6 +80,13 @@ async def test_tool_catalog_matches_the_contract(client: Client[Any]) -> None:
                 "destructive": None,
                 "open_world": True,
             },
+            {
+                "name": "discogs_wantlist_prices",
+                "title": "Get Prices of My Discogs Wantlist",
+                "read_only": True,
+                "destructive": None,
+                "open_world": True,
+            },
         ]
     )
 
@@ -133,7 +140,28 @@ async def test_wantlist_listing_points_to_the_other_tools(client: Client[Any]) -
     tools = {tool.name: tool for tool in await client.list_tools()}
 
     description = tools["discogs_list_wantlist"].description or ""
-    for term in ("artist and title text only", "discogs_search", "discogs_list_collection"):
+    for term in (
+        "artist and title text only",
+        "discogs_search",
+        "discogs_list_collection",
+        "discogs_wantlist_prices",
+    ):
+        assert term in description
+
+
+async def test_wantlist_prices_description_says_what_it_checks(client: Client[Any]) -> None:
+    tools = {tool.name: tool for tool in await client.list_tools()}
+
+    description = tools["discogs_wantlist_prices"].description or ""
+    for term in (
+        "at most 30 Wants",
+        "max_price",
+        "any condition",
+        "excluding shipping",
+        "Wantlister",
+        "discogs_get_prices",
+        "discogs_list_wantlist",
+    ):
         assert term in description
 
 

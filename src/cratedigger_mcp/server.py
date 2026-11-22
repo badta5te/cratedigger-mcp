@@ -26,10 +26,12 @@ from cratedigger_mcp.discogs import (
     Currency,
     DiscogsClient,
     DiscogsError,
+    MarketplaceCheck,
     MasterReleaseSort,
     NotFoundError,
     SearchType,
     UnauthorizedError,
+    Want,
     Wantlist,
     build_http_client,
 )
@@ -42,6 +44,7 @@ from cratedigger_mcp.formatting import (
     master_releases,
     release_card,
     search_results,
+    wantlist_prices,
     wantlist_wants,
 )
 from cratedigger_mcp.matching import Album, match_albums
@@ -57,6 +60,10 @@ To check a list of albums from another source (listening history, playlists) aga
 Owner's shelf, use discogs_match_collection rather than searching album by album."""
 
 READ_ONLY = {"readOnlyHint": True, "openWorldHint": True}
+
+# The most Wants discogs_wantlist_prices checks in one call: one Discogs request each, so that
+# the call stays within the rate limit and Claude's 240 s tool call timeout.
+MAX_WANTS_PRICED = 30
 
 TOKEN_HINT = (
     "Discogs rejected the access token (HTTP 401). Check DISCOGS_TOKEN in the MCP server "
@@ -143,6 +150,16 @@ def create_server(
             )
         except DiscogsError as error:
             raise tool_error(error) from None
+
+    async def marketplace_check(
+        ctx: Context, release_id: int, currency: Currency
+    ) -> MarketplaceCheck:
+        """A Release's Marketplace stats, kept for an hour and shared by the price tools."""
+        return await cache.get_or_load(
+            ("price", release_id, currency),
+            PRICE_TTL,
+            partial(discogs_client(ctx).check_marketplace, release_id, currency),
+        )
 
     @mcp.tool(title="Get Discogs Release", annotations=READ_ONLY, output_schema=None)
     async def discogs_get_release(
@@ -337,19 +354,12 @@ def create_server(
         discogs_wantlist_prices.
         """
         chosen = currency or settings.discogs_currency
-        client = discogs_client(ctx)
         checks, unknown = [], []
         # One after another: a failure leaves no requests running, and the checks that
         # succeeded are cached for the next call.
         for release_id in dict.fromkeys(release_ids):  # asked twice, shown once
             try:
-                checks.append(
-                    await cache.get_or_load(
-                        ("price", release_id, chosen),
-                        PRICE_TTL,
-                        partial(client.check_marketplace, release_id, chosen),
-                    )
-                )
+                checks.append(await marketplace_check(ctx, release_id, chosen))
             except NotFoundError:
                 unknown.append(release_id)
             except DiscogsError as error:
@@ -436,11 +446,73 @@ def create_server(
         matches artist and title text only: the lines carry no genres or styles, so a
         query such as "jazz" finds only artists and titles containing the word. Do not use it
         to find Releases in the catalog (use discogs_search) or to see what the Owner already
-        has (use discogs_list_collection).
+        has (use discogs_list_collection), and use discogs_wantlist_prices for what the Wants
+        cost.
         """
         wantlist = await owner_wantlist(ctx)
         query = query.strip()
         return wantlist_wants(wantlist, select_wants(wantlist, query), query, limit, page)
+
+    @mcp.tool(title="Get Prices of My Discogs Wantlist", annotations=READ_ONLY, output_schema=None)
+    async def discogs_wantlist_prices(
+        ctx: Context,
+        max_price: Annotated[
+            float | None,
+            Field(
+                description="Only Wants whose Lowest price is at or under this amount, in the "
+                "currency of the call, e.g. 30. Wants for sale above it are only counted.",
+                gt=0,
+            ),
+        ] = None,
+        currency: Annotated[
+            Currency | None,
+            Field(description=f"Currency of the prices; {settings.discogs_currency} by default."),
+        ] = None,
+        query: Annotated[
+            str,
+            Field(
+                description="Only Wants whose artist or title contain every word of this "
+                "text, ignoring case, e.g. 'astley'."
+            ),
+        ] = "",
+        limit: Annotated[
+            int,
+            Field(
+                description=f"Wants checked per call, newest first; at most {MAX_WANTS_PRICED}.",
+                ge=1,
+                le=MAX_WANTS_PRICED,
+            ),
+        ] = MAX_WANTS_PRICED,
+        page: Annotated[int, Field(description="Page of Wants, from 1.", ge=1)] = 1,
+    ) -> str:
+        """Check what the Wants on the Owner's own Discogs Wantlist cost on the Marketplace now.
+
+        Use it for "what on my Wantlist is cheap right now" or "which Wants are under 30 EUR".
+        It checks the Lowest price of at most 30 Wants per call (a page of the Wantlist, newest
+        first), keeps those at or under max_price, sorts them from cheapest and lists the Wants
+        with nothing for sale apart. When more Wants remain, the response says which page to
+        check next. The Lowest price is the cheapest current listing in any condition,
+        excluding shipping: not a market value. There is no price watch: Discogs' own
+        Wantlister sends alerts. Use discogs_get_prices for particular Releases and
+        discogs_list_wantlist to list the Wantlist without prices.
+        """
+        chosen_currency = currency or settings.discogs_currency
+        wantlist = await owner_wantlist(ctx)
+        query = query.strip()
+        chosen = select_wants(wantlist, query)
+        start = (page - 1) * limit
+        checked: list[tuple[Want, MarketplaceCheck | None]] = []
+        # One after another, as in discogs_get_prices: a failure keeps the checks made so far.
+        for want in chosen[start : start + limit]:
+            try:
+                checked.append((want, await marketplace_check(ctx, want.id, chosen_currency)))
+            except NotFoundError:
+                checked.append((want, None))
+            except DiscogsError as error:
+                raise tool_error(error) from None
+        return wantlist_prices(
+            wantlist, chosen, checked, query, chosen_currency, max_price, limit, page
+        )
 
     @mcp.tool(
         title="Match Albums Against My Discogs Collection",

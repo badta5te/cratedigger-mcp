@@ -28,6 +28,11 @@ stores nothing on disk.
 >   Releases you have several Copies of.
 > - `discogs_list_wantlist`: the Wants on your Wantlist, newest first, filtered by artist or
 >   title text and paged. Each line carries the Release, its Format and the `release_id`.
+> - `discogs_wantlist_prices`: the Lowest price of up to 30 Wants per call (a page of your
+>   Wantlist, newest first), sorted from cheapest, optionally only those at or under
+>   `max_price` and filtered by artist or title text. Wants with nothing for sale are listed
+>   apart, and the response says which page to check next. It shares the one-hour price cache
+>   with `discogs_get_prices`. There is no price watch: Discogs' own Wantlister sends alerts.
 > - `discogs_collection_summary`: the number of Copies in each folder and Discogs'
 >   minimum/median/maximum estimate of the Collection's value.
 > - `discogs_match_collection`: checks 1 to 200 artist/album pairs from any other source

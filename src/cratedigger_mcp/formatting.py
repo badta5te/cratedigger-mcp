@@ -6,7 +6,7 @@ Every card carries the IDs for the next call and ends with the Discogs attributi
 import math
 import re
 from collections import Counter
-from datetime import UTC
+from datetime import UTC, datetime
 from typing import Literal
 from urllib.parse import quote, urlencode
 
@@ -21,7 +21,9 @@ from cratedigger_mcp.discogs import (
     Currency,
     Folder,
     Format,
+    LowestPrice,
     MarketplaceCheck,
+    MarketplaceStats,
     Master,
     MasterRelease,
     MasterReleaseSort,
@@ -57,6 +59,10 @@ COLLECTION_SORTS: dict[CollectionSort, str] = {
     "year": "sorted by year, oldest first",
 }
 
+LOWEST_PRICE_MEANING = (
+    "Lowest price: the cheapest current listing in any condition, excluding shipping; "
+    "not a market value."
+)
 NOTES_LIMIT = 1500
 # The Format descriptions a matched Release keeps: its size and kind.
 SIZE_AND_KIND = frozenset(
@@ -107,8 +113,7 @@ def marketplace_prices(checks: list[MarketplaceCheck], currency: Currency) -> st
     )
     return "\n".join(
         [
-            f"Marketplace prices in {currency}. Lowest price: the cheapest current listing in "
-            "any condition, excluding shipping; not a market value.",
+            f"Marketplace prices in {currency}. {LOWEST_PRICE_MEANING}",
             *(_marketplace_line(check) for check in checks),
             "",
             attribution(sell_url),
@@ -118,15 +123,18 @@ def marketplace_prices(checks: list[MarketplaceCheck], currency: Currency) -> st
 
 def _marketplace_line(check: MarketplaceCheck) -> str:
     stats = check.stats
+    price = _lowest_price(stats)
     if stats.blocked_from_sale:
         status = "blocked from sale on the Discogs Marketplace"
-    elif stats.lowest_price is None or not stats.num_for_sale:
+    elif price is None:
         status = "nothing for sale right now"
     else:
-        price = stats.lowest_price
         status = f"Lowest price {price.value:.2f} {price.currency} · {stats.num_for_sale} for sale"
-    checked = check.checked_at.astimezone(UTC).strftime("%Y-%m-%d %H:%M UTC")
-    return f"release_id={check.release_id}: {status} · checked {checked}"
+    return f"release_id={check.release_id}: {status} · checked {_utc(check.checked_at)}"
+
+
+def _utc(moment: datetime) -> str:
+    return moment.astimezone(UTC).strftime("%Y-%m-%d %H:%M UTC")
 
 
 def search_results(
@@ -312,20 +320,10 @@ def wantlist_wants(
 ) -> str:
     """One page of the chosen Wants, numbered across pages, with a next-page hint."""
     footer = ["", attribution(wantlist_url(wantlist.owner))]
-    if not chosen:
-        if not query:
-            return "\n".join([f"The Wantlist of {wantlist.owner} holds no Wants.", *footer])
-        nothing = f'No Wants on the Wantlist of {wantlist.owner} match "{query}".'
-        return "\n".join([nothing + " Try fewer words or another spelling.", *footer])
+    nothing = _no_wants(wantlist, chosen, query, limit, page)
+    if nothing:
+        return "\n".join([nothing, *footer])
     pages = math.ceil(len(chosen) / limit)
-    if page > pages:
-        return "\n".join(
-            [
-                f"No Wants on page {page}: the list has {pages} pages of {limit}. "
-                "Use a lower page.",
-                *footer,
-            ]
-        )
     heading = ", ".join(
         [
             f"Wantlist of {wantlist.owner}",
@@ -346,6 +344,125 @@ def wantlist_wants(
         *footer,
     ]
     return "\n".join(lines)
+
+
+def wantlist_prices(
+    wantlist: Wantlist,
+    chosen: list[Want],
+    checked: list[tuple[Want, MarketplaceCheck | None]],
+    query: str,
+    currency: Currency,
+    max_price: float | None,
+    limit: int,
+    page: int,
+) -> str:
+    """The Lowest prices of one page of the chosen Wants, cheapest first.
+
+    `checked` pairs each Want of the page with its Marketplace stats, or None when Discogs has
+    none. Wants for sale above `max_price` are only counted; Wants not for sale are listed apart.
+    """
+    footer = ["", attribution(wantlist_url(wantlist.owner))]
+    nothing = _no_wants(wantlist, chosen, query, limit, page)
+    if nothing:
+        return "\n".join([nothing, *footer])
+    pages = math.ceil(len(chosen) / limit)
+    priced: list[tuple[Want, LowestPrice, int]] = []
+    unsold: list[tuple[Want, MarketplaceCheck | None]] = []
+    for want, check in checked:
+        lowest = _lowest_price(check.stats) if check else None
+        if check and lowest:
+            priced.append((want, lowest, check.stats.num_for_sale or 0))
+        else:
+            unsold.append((want, check))
+    priced.sort(key=lambda entry: entry[1].value)
+    cheap = [entry for entry in priced if max_price is None or entry[1].value <= max_price]
+    dearer = len(priced) - len(cheap)
+    max_price_text = f"{max_price:.2f} {currency}" if max_price is not None else ""
+    heading = ", ".join(
+        [
+            f"Wantlist of {wantlist.owner}",
+            *([f'Wants matching "{query}"'] if query else []),
+            f"Lowest prices in {currency}",
+            *([f"at or under {max_price_text}"] if max_price is not None else []),
+            "cheapest first",
+        ]
+    )
+    first = (page - 1) * limit + 1
+    last = first + len(checked) - 1
+    times = [check.checked_at for _, check in checked if check]
+    meaning = LOWEST_PRICE_MEANING + (f" Checked {_checked_span(times)}." if times else "")
+    lines = [
+        f"{heading}: Wants {first}–{last} of {len(chosen)} checked (newest first)",
+        meaning,
+        *(
+            f"{number}. {lowest.value:.2f} {lowest.currency} · {count} for sale · "
+            + _listed_release_line(want.release)
+            for number, (want, lowest, count) in enumerate(cheap, start=1)
+        ),
+    ]
+    if dearer:
+        cost = "costs" if dearer == 1 else "cost"
+        lines.append(
+            f"{_wants(dearer)} {cost} more than {max_price_text}."
+            if cheap
+            else f"None of these Wants is at or under {max_price_text}: "
+            f"{_wants(dearer)} {cost} more."
+        )
+    if unsold:
+        lines += [
+            "",
+            "Nothing for sale right now:",
+            *(f"- {_unsold_want(want, check)}" for want, check in unsold),
+        ]
+    remaining = len(chosen) - last
+    hint = (
+        f"Use page={page + 1} to check the next {_wants(min(limit, remaining))}. "
+        if page < pages
+        else ""
+    )
+    lines += ["", hint + "Use discogs_get_release with a release_id for the full card.", *footer]
+    return "\n".join(lines)
+
+
+def _no_wants(wantlist: Wantlist, chosen: list[Want], query: str, limit: int, page: int) -> str:
+    """Why a page of the chosen Wants is empty, or "" when it is not."""
+    if not chosen:
+        if not query:
+            return f"The Wantlist of {wantlist.owner} holds no Wants."
+        return (
+            f'No Wants on the Wantlist of {wantlist.owner} match "{query}". '
+            "Try fewer words or another spelling."
+        )
+    pages = math.ceil(len(chosen) / limit)
+    if page > pages:
+        return f"No Wants on page {page}: the list has {pages} pages of {limit}. Use a lower page."
+    return ""
+
+
+def _lowest_price(stats: MarketplaceStats) -> LowestPrice | None:
+    """The Lowest price of a Release that is for sale, None when it is not."""
+    if stats.blocked_from_sale or not stats.num_for_sale:
+        return None
+    return stats.lowest_price
+
+
+def _unsold_want(want: Want, check: MarketplaceCheck | None) -> str:
+    line = _listed_release_line(want.release)
+    if check is None:
+        return line + " · no Marketplace stats on Discogs"
+    if check.stats.blocked_from_sale:
+        return line + " · blocked from sale on the Discogs Marketplace"
+    return line
+
+
+def _checked_span(times: list[datetime]) -> str:
+    """When the prices were checked: one minute, or the earliest and the latest."""
+    earliest, latest = (moment.astimezone(UTC) for moment in (min(times), max(times)))
+    if _utc(earliest) == _utc(latest):
+        return _utc(earliest)
+    if earliest.date() == latest.date():
+        return f"{earliest:%Y-%m-%d %H:%M}–{latest:%H:%M} UTC"
+    return f"{_utc(earliest)} – {_utc(latest)}"
 
 
 def album_matches(matches: list[AlbumMatch], collection: Collection, wantlist: Wantlist) -> str:
