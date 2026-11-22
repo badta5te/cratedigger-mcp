@@ -33,8 +33,9 @@ stores nothing on disk.
 > - `discogs_match_collection`: checks 1 to 200 artist/album pairs from any other source
 >   (Last.fm, Spotify, a pasted list) against your Collection and Wantlist. Each album is in
 >   Collection (any Release of its Master, in any Format, with the matching Copies listed), on
->   Wantlist, possible (a similar title under another Master, such as an anniversary edition) or
->   absent. Names match ignoring case, diacritics, punctuation, a leading "The", "&" versus "and"
+>   Wantlist, possible (a longer or shorter title of the same artist under another Master, such
+>   as a reissue with an added subtitle or a live album; titles that differ only by a series
+>   number such as "III" or "Vol. 2" count as different albums) or absent. Names match ignoring case, diacritics, punctuation, a leading "The", "&" versus "and"
 >   and edition qualifiers such as "(Remastered)". It reads only your Collection and Wantlist
 >   and never searches the catalog per album.
 >

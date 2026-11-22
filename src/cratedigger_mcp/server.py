@@ -470,7 +470,8 @@ def create_server(
         punctuation, a leading "The", "&" versus "and" and edition qualifiers such as
         Remastered, Deluxe, Expanded, Anniversary or Mono. A possible match is a Release of the
         same artist whose title contains the album's title or is contained in it, under
-        another Master. It reads only the Owner's Collection and Wantlist, never the catalog:
+        another Master; titles that differ only by a series number (III, Vol. 2) are two
+        albums. It reads only the Owner's Collection and Wantlist, never the catalog:
         do not call discogs_search album by album, and use discogs_list_collection to browse.
         """
         collection = await owner_collection(ctx)

@@ -7,7 +7,9 @@ punctuation, a leading "The", "&" versus "and" and edition qualifiers such as "(
 and title, and then every Copy of that Release's Master counts as the same album, in any
 Format. Releases without a Master match on artist and title alone. A Release of the same artist
 whose title contains the album's title, or is contained in it, without being equal is only a
-possible match: an anniversary or expanded edition under a Master of its own, for example.
+possible match: a reissue under a Master of its own, such as "OK Computer OKNOTOK 1997 2017",
+or a live album. Titles that differ only by a series number, such as "Led Zeppelin" and
+"Led Zeppelin III", are two albums.
 
 Nothing here asks Discogs: matching works on the snapshots alone.
 """
@@ -35,6 +37,10 @@ _FILLERS = frozenset(
 # A year or an ordinal goes with a qualifier, as in "2011 Remaster" or "50th Anniversary";
 # another number belongs to the title, as in "Chicago 17" or "Vol. 2 Deluxe".
 _YEAR_OR_ORDINAL = re.compile(r"(19|20)\d\d|\d+(st|nd|rd|th)")
+# Words that go with the number of an album in a series, as in "Vol. 2" or "Part III".
+_SERIES = frozenset({"vol", "volume", "part", "pt"})
+# Roman numerals up to XX.
+_ROMAN = re.compile(r"x{0,2}(ix|iv|v?i{0,3})")
 # How other sources credit a compilation that Discogs credits to "Various".
 _VARIOUS = frozenset({"variousartists", "va"})
 _BRACKETED = re.compile(r"[(\[{]([^()\[\]{}]*)[)\]}]")
@@ -145,11 +151,10 @@ class _Index[E]:
         ]
 
     def similar(self, artist: str, title: tuple[str, ...]) -> list[E]:
-        """The entries of this artist whose title contains `title` or is contained in it."""
+        """The entries of this artist whose title contains `title` or is contained in it, unless
+        the titles differ only by a series number."""
         return [
-            found.entry
-            for found in self._by_artist.get(artist, [])
-            if _contains(found.title, title) or _contains(title, found.title)
+            found.entry for found in self._by_artist.get(artist, []) if _similar(found.title, title)
         ]
 
 
@@ -232,11 +237,24 @@ def _key(words: tuple[str, ...]) -> str:
     return "".join(_without_the(words))
 
 
-def _contains(longer: tuple[str, ...], shorter: tuple[str, ...]) -> bool:
-    """Whether `shorter` occurs as consecutive whole words in `longer` without being equal."""
-    if not shorter or len(shorter) >= len(longer):
+def _similar(one: tuple[str, ...], other: tuple[str, ...]) -> bool:
+    """Whether one title occurs in the other as consecutive whole words, and the words left
+    over are more than a series number: "OK Computer" and "OK Computer OKNOTOK 1997 2017" are
+    similar, "Led Zeppelin" and "Led Zeppelin III" are two albums."""
+    shorter, longer = sorted((one, other), key=len)
+    if not shorter or len(shorter) == len(longer):
         return False
-    return any(
-        longer[start : start + len(shorter)] == shorter
-        for start in range(len(longer) - len(shorter) + 1)
+    for start in range(len(longer) - len(shorter) + 1):
+        if longer[start : start + len(shorter)] == shorter:
+            rest = longer[:start] + longer[start + len(shorter) :]
+            return not _series_number(rest)
+    return False
+
+
+def _series_number(words: tuple[str, ...]) -> bool:
+    """Whether `words` only number an album in a series, as in "III", "17" or "Vol. 2". A year
+    is not a series number: it marks a reissue more often."""
+    numbers = [word for word in words if word not in _SERIES]
+    return bool(numbers) and all(
+        _ROMAN.fullmatch(word) or (word.isdigit() and int(word) < 1900) for word in numbers
     )

@@ -362,8 +362,8 @@ def album_matches(matches: list[AlbumMatch], collection: Collection, wantlist: W
         "Use discogs_get_release with a release_id for the full card."
         + (
             " A possible match is a Release of the same artist with a longer or shorter title "
-            "under another Master, such as an anniversary or expanded edition: ask the Owner "
-            "or compare the cards."
+            "under another Master, such as a reissue with an added subtitle or a live album: "
+            "ask the Owner or compare the cards."
             if results["possible"]
             else ""
         ),

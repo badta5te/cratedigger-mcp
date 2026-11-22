@@ -307,7 +307,7 @@ async def test_a_shorter_title_under_another_master_is_possible_too(
         ),
         (("Someone", "Greatest Hits Vol. 2"), ("Someone", "Greatest Hits Vol. 3"), "absent"),
         (("Prince", "1999"), ("Prince", "1999 - Remastered"), "in Collection"),
-        (("Chicago", "Chicago"), ("Chicago", "Chicago 17 - Remastered"), "possible"),
+        (("Chicago", "Chicago"), ("Chicago", "Chicago 17 - Remastered"), "absent"),
         (("Chicago", "Chicago 17"), ("Chicago", "Chicago 17 (2011 Remaster)"), "in Collection"),
         (("Various", "Nuggets"), ("Various Artists", "Nuggets"), "in Collection"),
     ],
@@ -336,3 +336,28 @@ async def test_a_blank_artist_or_title_is_rejected(
     assert is_error
     assert "String should have at least 1 character" in text
     assert discogs.requests == []
+
+
+@pytest.mark.parametrize(
+    ("owned", "asked", "result"),
+    [
+        ("Led Zeppelin III", "Led Zeppelin", "absent"),
+        ("Greatest Hits II", "Greatest Hits", "absent"),
+        ("Greatest Hits Vol. 2", "Greatest Hits", "absent"),
+        ("Chicago 17", "Chicago", "absent"),
+        ("Chicago", "Chicago XVII", "absent"),
+        ("OK Computer OKNOTOK 1997 2017", "OK Computer", "possible"),
+        ("Kind of Blue 1959", "Kind of Blue", "possible"),
+        ("Rumours Live", "Rumours", "possible"),
+        ("Peter Gabriel 1: Car", "Peter Gabriel", "possible"),
+        ("Live at Leeds", "Live", "possible"),
+    ],
+)
+async def test_a_title_that_differs_only_by_a_series_number_is_another_album(
+    client: Client[Any], discogs: FakeDiscogs, owned: str, asked: str, result: str
+) -> None:
+    add_copy(discogs, 1001, "Someone", owned, 424242)
+
+    text = await match(client, ("Someone", asked))
+
+    assert album_line(text).split(": ")[1] == result
