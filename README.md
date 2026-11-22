@@ -24,7 +24,7 @@ package and the command are both called `cratedigger-mcp`.
 |---|---|
 | `discogs_search` | Find Releases (pressings), Masters, artists or labels in the catalog by free text, narrowed by artist, year, Format, country, catalog number or barcode |
 | `discogs_get_release` | The card of one Release: label, catalog number, Format, country, year, tracklist, have/want counts and Master; the detailed form adds matrix/runout, barcode and notes |
-| `discogs_list_master_releases` | Every Release of a Master, to compare the editions of an album by country, year, label, catalog number and Format |
+| `discogs_list_master_releases` | Every Release of a Master, to compare the Releases of an album by country, year, label, catalog number and Format |
 | `discogs_get_prices` | The Lowest price, the number of copies for sale and the blocked-from-sale flag of 1 to 10 Releases |
 | `discogs_list_collection` | The Copies in your Collection, newest first, filtered by artist or title, by folder, with Format and condition |
 | `discogs_collection_summary` | How many Copies each folder holds, and Discogs' minimum/median/maximum estimate of the Collection's value |
@@ -81,7 +81,7 @@ Config**, or edit the file directly:
 }
 ```
 
-Restart Claude Desktop. The tools appear under the **cratedigger** connector.
+Restart Claude Desktop.
 
 ### Claude Code
 
