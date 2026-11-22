@@ -31,8 +31,9 @@ stores nothing on disk.
 > - `discogs_collection_summary`: the number of Copies in each folder and Discogs'
 >   minimum/median/maximum estimate of the Collection's value.
 >
-> The server finds your username from the token, and keeps the Collection and the Wantlist in
-> memory for 15 minutes, so follow-up questions about them cost no Discogs requests.
+> The server finds your username from the token. It keeps the Collection and the Wantlist in
+> memory and checks their first page on every call, so a Want or Copy you add on Discogs shows
+> at once while a follow-up question costs one or two Discogs requests.
 >
 > And one prompt:
 >

@@ -8,7 +8,7 @@ instead of raw JSON.
 
 import asyncio
 import logging
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Literal
@@ -252,6 +252,10 @@ class CollectionRelease(_Model):
     formats: list[Format] = Field(default_factory=list)
 
 
+class _Paged(_Model):
+    pagination: Pagination
+
+
 class Copy(_Model):
     instance_id: int
     folder_id: int
@@ -260,8 +264,7 @@ class Copy(_Model):
     notes: list[CopyNote] = Field(default_factory=list)
 
 
-class CollectionPage(_Model):
-    pagination: Pagination
+class CollectionPage(_Paged):
     releases: list[Copy] = Field(default_factory=list)
 
 
@@ -271,8 +274,7 @@ class Want(_Model):
     release: CollectionRelease = Field(alias="basic_information")
 
 
-class WantlistPage(_Model):
-    pagination: Pagination
+class WantlistPage(_Paged):
     wants: list[Want] = Field(default_factory=list)
 
 
@@ -366,6 +368,16 @@ def _int_header(response: httpx2.Response, name: str) -> int | None:
         return None
 
 
+def _full_page(page: int) -> dict[str, str | int]:
+    """The query of one page of a list fetched whole, newest added first."""
+    return {"per_page": FULL_PAGE_SIZE, "page": page, "sort": "added", "sort_order": "desc"}
+
+
+def _same_start[E](pagination: Pagination, first_page: list[E], previous: list[E]) -> bool:
+    """Whether a list still holds as many entries as `previous` and starts with the same ones."""
+    return pagination.items == len(previous) and first_page == previous[: len(first_page)]
+
+
 def _collection_path(owner: str) -> str:
     return f"/users/{quote(owner, safe='')}/collection"
 
@@ -435,37 +447,41 @@ class DiscogsClient:
                 self._username = identity.username
             return self._username
 
-    async def get_collection(self) -> Collection:
-        """Every Copy in the Owner's Collection across all pages, newest first."""
+    async def get_collection(self, previous: Collection | None = None) -> Collection:
+        """Every Copy in the Owner's Collection across all pages, newest first.
+
+        When the folders with their counts, the total and the first page are the same as in
+        `previous`, `previous` itself is returned and the fields and later pages are not
+        fetched. Changes to older Copies that keep every folder's count, such as a new grade,
+        go unseen until the snapshot is reloaded.
+        """
         owner = await self.owner_username()
         base = _collection_path(owner)
+        path = f"{base}/folders/0/releases"
         folders = await self._get(f"{base}/folders", CollectionFolders)
+        first = await self._get(path, CollectionPage, _full_page(1))
+        if (
+            previous is not None
+            and folders.folders == previous.folders
+            and _same_start(first.pagination, first.releases, previous.copies)
+        ):
+            return previous
         fields = await self._get(f"{base}/fields", CollectionFields)
-        copies: list[Copy] = []
-        page, pages = 1, 1
-        while page <= pages:
-            found = await self._get(
-                f"{base}/folders/0/releases",
-                CollectionPage,
-                {"per_page": FULL_PAGE_SIZE, "page": page, "sort": "added", "sort_order": "desc"},
-            )
-            copies += found.releases
-            page, pages = page + 1, found.pagination.pages
+        copies = await self._every_page(path, CollectionPage, first, lambda found: found.releases)
         return Collection(owner, folders.folders, fields.fields, copies)
 
-    async def get_wantlist(self) -> Wantlist:
-        """Every Want on the Owner's Wantlist across all pages, newest first."""
+    async def get_wantlist(self, previous: Wantlist | None = None) -> Wantlist:
+        """Every Want on the Owner's Wantlist across all pages, newest first.
+
+        When the first page shows the same Wants and the same total as `previous`, nothing was
+        added or removed: `previous` itself is returned and the later pages are not fetched.
+        """
         owner = await self.owner_username()
-        wants: list[Want] = []
-        page, pages = 1, 1
-        while page <= pages:
-            found = await self._get(
-                f"/users/{quote(owner, safe='')}/wants",
-                WantlistPage,
-                {"per_page": FULL_PAGE_SIZE, "page": page, "sort": "added", "sort_order": "desc"},
-            )
-            wants += found.wants
-            page, pages = page + 1, found.pagination.pages
+        path = f"/users/{quote(owner, safe='')}/wants"
+        first = await self._get(path, WantlistPage, _full_page(1))
+        if previous is not None and _same_start(first.pagination, first.wants, previous.wants):
+            return previous
+        wants = await self._every_page(path, WantlistPage, first, lambda found: found.wants)
         return Wantlist(owner, wants)
 
     async def get_collection_summary(self) -> CollectionSummary:
@@ -475,6 +491,15 @@ class DiscogsClient:
         folders = await self._get(f"{base}/folders", CollectionFolders)
         value = await self._get(f"{base}/value", CollectionValue)
         return CollectionSummary(owner, folders.folders, value)
+
+    async def _every_page[P: _Paged, E](
+        self, path: str, model: type[P], first: P, entries: Callable[[P], list[E]]
+    ) -> list[E]:
+        """The entries of `first` and of every later page of the list at `path`."""
+        found = list(entries(first))
+        for page in range(2, first.pagination.pages + 1):
+            found += entries(await self._get(path, model, _full_page(page)))
+        return found
 
     async def _get[M: BaseModel](
         self, path: str, model: type[M], params: QueryParams | None = None

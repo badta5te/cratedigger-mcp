@@ -1,5 +1,6 @@
 """discogs_list_collection: what is in the Owner's Collection."""
 
+import copy
 from datetime import timedelta
 from typing import Any
 
@@ -44,10 +45,10 @@ async def test_copies_are_listed_newest_first_with_their_release_ids(
     assert [request.url.path for request in discogs.requests] == [
         "/oauth/identity",
         "/users/example-owner/collection/folders",
-        "/users/example-owner/collection/fields",
         "/users/example-owner/collection/folders/0/releases",
+        "/users/example-owner/collection/fields",
     ]
-    assert dict(discogs.requests[-1].url.params) == {
+    assert dict(discogs.requests[2].url.params) == {
         "per_page": "100",
         "page": "1",
         "sort": "added",
@@ -71,32 +72,101 @@ async def test_the_whole_collection_is_fetched_in_pages_of_100(
     assert "page 1 of 205 (205 Copies)\n1. Rick Astley — Filler 1 · " in text
 
 
-async def test_a_second_question_within_15_minutes_makes_no_request(
-    client: Client[Any], discogs: FakeDiscogs, clock: FakeClock
+def collection_requests(discogs: FakeDiscogs) -> list[str]:
+    """The Collection requests made so far: paths after the collection prefix, pages by number."""
+    prefix = "/users/example-owner/collection/"
+    return [
+        request.url.path.removeprefix(prefix)
+        + (f"?page={request.url.params['page']}" if "page" in request.url.params else "")
+        for request in discogs.requests
+        if request.url.path.startswith(prefix)
+    ]
+
+
+async def test_a_copy_added_on_discogs_shows_at_once(
+    client: Client[Any], discogs: FakeDiscogs
 ) -> None:
     await list_collection(client)
-    requests = len(discogs.requests)
-    clock.advance(timedelta(minutes=14))
+    added = copy.deepcopy(discogs.collection[0])
+    added["instance_id"] = 1_600_000_001
+    added["basic_information"]["title"] = "Just Added"
+    added["date_added"] = "2026-11-20T11:59:00+00:00"
+    discogs.collection.insert(0, added)
 
-    await list_collection(client, query="fishbone", sort="year", limit=1, page=1)
+    text = await list_collection(client)
 
-    assert len(discogs.requests) == requests
+    assert text.splitlines()[0].endswith(": page 1 of 1 (6 Copies)")
+    assert text.splitlines()[1].startswith("1. Rick Astley — Just Added · ")
 
 
-async def test_after_15_minutes_the_collection_is_fetched_again_but_not_the_username(
-    client: Client[Any], discogs: FakeDiscogs, clock: FakeClock
+async def test_an_unchanged_collection_costs_two_requests(
+    client: Client[Any], discogs: FakeDiscogs
 ) -> None:
+    discogs.add_copies(200)
     await list_collection(client)
     discogs.requests.clear()
-    clock.advance(timedelta(minutes=16))
 
+    await list_collection(client, query="fishbone", sort="year")
+
+    assert collection_requests(discogs) == ["folders", "folders/0/releases?page=1"]
+
+
+async def test_a_recent_copy_regraded_on_discogs_shows_at_once(
+    client: Client[Any], discogs: FakeDiscogs
+) -> None:
     await list_collection(client)
+    discogs.collection[0]["notes"] = [{"field_id": 2, "value": "Good (G)"}]
 
-    assert [request.url.path for request in discogs.requests] == [
-        "/users/example-owner/collection/folders",
-        "/users/example-owner/collection/fields",
-        "/users/example-owner/collection/folders/0/releases",
+    text = await list_collection(client, limit=1)
+
+    assert "· folder CD · Sleeve Condition G [release_id=3499619]" in text
+
+
+async def test_a_copy_moved_to_another_folder_deep_in_the_list_shows_at_once(
+    client: Client[Any], discogs: FakeDiscogs
+) -> None:
+    discogs.add_copies(150)
+    await list_collection(client)
+    discogs.collection[149]["folder_id"] = 1
+    folders = {folder["id"]: folder for folder in discogs.collection_folders["folders"]}
+    folders[2000002]["count"] -= 1
+    folders[1]["count"] += 1
+    discogs.requests.clear()
+
+    text = await list_collection(client, folder_id=1)
+
+    assert collection_requests(discogs) == [
+        "folders",
+        "folders/0/releases?page=1",
+        "fields",
+        "folders/0/releases?page=2",
     ]
+    assert "(2 Copies)" in text.splitlines()[0]
+    assert "Filler 145" in text
+
+
+async def test_the_whole_collection_is_fetched_again_every_5_minutes_however_often_asked(
+    client: Client[Any], discogs: FakeDiscogs, clock: FakeClock
+) -> None:
+    discogs.add_copies(150)
+    await list_collection(client)
+    discogs.collection[124]["notes"] = [{"field_id": 1, "value": "Good (G)"}]  # Filler 120
+
+    clock.advance(timedelta(minutes=4))
+    before = await list_collection(client, query="filler 120")
+    discogs.requests.clear()
+    clock.advance(timedelta(minutes=2))
+    after = await list_collection(client, query="filler 120")
+
+    assert "Media Condition NM or M-, Sleeve Condition VG+" in before
+    assert "Media Condition G [release_id=" in after
+    assert collection_requests(discogs) == [
+        "folders",
+        "folders/0/releases?page=1",
+        "fields",
+        "folders/0/releases?page=2",
+    ]
+    assert "/oauth/identity" not in [request.url.path for request in discogs.requests]
 
 
 async def test_query_matches_artist_or_title_words_ignoring_case(client: Client[Any]) -> None:

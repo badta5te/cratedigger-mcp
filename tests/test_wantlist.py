@@ -1,5 +1,6 @@
 """discogs_list_wantlist: what is on the Owner's Wantlist."""
 
+import copy
 from datetime import timedelta
 from typing import Any
 
@@ -60,28 +61,70 @@ async def test_the_whole_wantlist_is_fetched_in_pages_of_100(
     assert "page 203 of 203 (203 Wants)\n203. Rick Astley — Filler 200 · " in text
 
 
-async def test_a_second_question_within_15_minutes_makes_no_request(
-    client: Client[Any], discogs: FakeDiscogs, clock: FakeClock
+def wants_pages(discogs: FakeDiscogs) -> list[str]:
+    """The Wantlist pages requested so far, by number."""
+    return [r.url.params["page"] for r in discogs.requests if r.url.path.endswith("/wants")]
+
+
+async def test_a_want_added_on_discogs_shows_at_once(
+    client: Client[Any], discogs: FakeDiscogs
 ) -> None:
     await list_wantlist(client)
-    requests = len(discogs.requests)
-    clock.advance(timedelta(minutes=14))
+    added = copy.deepcopy(discogs.wantlist[0])
+    added["id"] = added["basic_information"]["id"] = 7_000_001
+    added["basic_information"]["title"] = "Just Added"
+    added["date_added"] = "2026-11-20T11:59:00+00:00"
+    discogs.wantlist.insert(0, added)
 
-    await list_wantlist(client, query="astley", limit=1, page=2)
+    text = await list_wantlist(client)
 
-    assert len(discogs.requests) == requests
+    assert text.splitlines()[0].endswith(": page 1 of 1 (4 Wants)")
+    assert text.splitlines()[1].startswith("1. Rick Astley — Just Added · ")
 
 
-async def test_after_15_minutes_the_wantlist_is_fetched_again_but_not_the_username(
-    client: Client[Any], discogs: FakeDiscogs, clock: FakeClock
+async def test_a_want_removed_past_the_first_page_disappears_at_once(
+    client: Client[Any], discogs: FakeDiscogs
 ) -> None:
+    discogs.add_wants(150)
+    await list_wantlist(client)
+    removed = discogs.wantlist.pop()
+    discogs.requests.clear()
+
+    text = await list_wantlist(client, limit=50, page=4)
+
+    assert wants_pages(discogs) == ["1", "2"]
+    assert text.splitlines()[0].endswith(": page 4 of 4 (152 Wants)")
+    assert removed["basic_information"]["title"] not in text
+
+
+async def test_an_unchanged_wantlist_costs_one_request(
+    client: Client[Any], discogs: FakeDiscogs
+) -> None:
+    discogs.add_wants(200)
     await list_wantlist(client)
     discogs.requests.clear()
-    clock.advance(timedelta(minutes=16))
+
+    text = await list_wantlist(client, query="filler 199")
+
+    assert [request.url.path for request in discogs.requests] == ["/users/example-owner/wants"]
+    assert wants_pages(discogs) == ["1"]
+    assert "1. Rick Astley — Filler 199 · " in text
+
+
+async def test_the_whole_wantlist_is_fetched_again_every_5_minutes_however_often_asked(
+    client: Client[Any], discogs: FakeDiscogs, clock: FakeClock
+) -> None:
+    discogs.add_wants(200)
+    await list_wantlist(client)
+    clock.advance(timedelta(minutes=4))
+    await list_wantlist(client)
+    discogs.requests.clear()
+    clock.advance(timedelta(minutes=2))
 
     await list_wantlist(client)
 
-    assert [request.url.path for request in discogs.requests] == ["/users/example-owner/wants"]
+    assert wants_pages(discogs) == ["1", "2", "3"]
+    assert "/oauth/identity" not in [request.url.path for request in discogs.requests]
 
 
 async def test_query_matches_artist_or_title_words_ignoring_case(
@@ -171,3 +214,17 @@ async def test_newest_first_compares_moments_not_text(
 
     assert "1. Rick Astley — Never Gonna Give You Up" in text
     assert "2. Rick Astley — First On Your Block" in text
+
+
+async def test_a_failed_check_keeps_the_snapshot(client: Client[Any], discogs: FakeDiscogs) -> None:
+    discogs.add_wants(200)
+    await list_wantlist(client)
+    discogs.failing_status = 502
+    is_error, _ = await call_tool_text(client, "discogs_list_wantlist", {})
+    assert is_error
+    discogs.failing_status = None
+    discogs.requests.clear()
+
+    await list_wantlist(client)
+
+    assert wants_pages(discogs) == ["1"]

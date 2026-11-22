@@ -12,7 +12,12 @@ from fastmcp import Context, FastMCP
 from fastmcp.exceptions import ToolError
 from pydantic import Field, ValidationError
 
-from cratedigger_mcp.cache import CATALOG_TTL, COLLECTION_TTL, PRICE_TTL, WANTLIST_TTL, TtlCache
+from cratedigger_mcp.cache import (
+    CATALOG_TTL,
+    OWNER_SNAPSHOT_TTL,
+    PRICE_TTL,
+    TtlCache,
+)
 from cratedigger_mcp.clock import Clock, SystemClock
 from cratedigger_mcp.collection import select_copies, select_wants
 from cratedigger_mcp.discogs import (
@@ -376,8 +381,8 @@ def create_server(
         """
         client = discogs_client(ctx)
         try:
-            collection = await cache.get_or_load(
-                ("collection",), COLLECTION_TTL, client.get_collection
+            collection = await cache.revalidate(
+                ("collection",), OWNER_SNAPSHOT_TTL, client.get_collection
             )
         except DiscogsError as error:
             raise tool_error(error) from None
@@ -419,7 +424,9 @@ def create_server(
         """
         client = discogs_client(ctx)
         try:
-            wantlist = await cache.get_or_load(("wantlist",), WANTLIST_TTL, client.get_wantlist)
+            wantlist = await cache.revalidate(
+                ("wantlist",), OWNER_SNAPSHOT_TTL, client.get_wantlist
+            )
         except DiscogsError as error:
             raise tool_error(error) from None
         query = query.strip()
@@ -437,9 +444,7 @@ def create_server(
         """
         client = discogs_client(ctx)
         try:
-            summary = await cache.get_or_load(
-                ("collection_summary",), COLLECTION_TTL, client.get_collection_summary
-            )
+            summary = await client.get_collection_summary()
         except DiscogsError as error:
             raise tool_error(error) from None
         return collection_summary(summary)

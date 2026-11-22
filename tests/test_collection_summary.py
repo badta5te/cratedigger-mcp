@@ -1,11 +1,10 @@
 """discogs_collection_summary: the size of the Owner's Collection and what it is worth."""
 
-from datetime import timedelta
 from typing import Any
 
 from fastmcp import Client
 
-from tests.conftest import FakeClock, FakeDiscogs, call_tool_text
+from tests.conftest import FakeDiscogs, call_tool_text
 
 
 async def summary(client: Client[Any]) -> str:
@@ -36,17 +35,13 @@ async def test_copies_per_folder_and_the_value_as_discogs_reports_it(
     ]
 
 
-async def test_summary_is_cached_for_15_minutes(
-    client: Client[Any], discogs: FakeDiscogs, clock: FakeClock
-) -> None:
+async def test_every_summary_asks_discogs_afresh(client: Client[Any], discogs: FakeDiscogs) -> None:
     await summary(client)
-    clock.advance(timedelta(minutes=14))
-    await summary(client)
-    assert len(discogs.requests) == 3
+    discogs.collection_folders["folders"][0]["count"] = 13
 
-    clock.advance(timedelta(minutes=2))
-    await summary(client)
+    text = await summary(client)
 
+    assert text.startswith("Collection of example-owner: 13 Copies\n")
     assert [request.url.path for request in discogs.requests[3:]] == [
         "/users/example-owner/collection/folders",
         "/users/example-owner/collection/value",
