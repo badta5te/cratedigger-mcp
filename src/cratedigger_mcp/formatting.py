@@ -13,6 +13,7 @@ from urllib.parse import quote, urlencode
 from cratedigger_mcp.discogs import (
     Artist,
     Collection,
+    CollectionField,
     CollectionSort,
     CollectionSummary,
     Copy,
@@ -54,6 +55,8 @@ COLLECTION_SORTS: dict[CollectionSort, str] = {
 
 NOTES_LIMIT = 1500
 _DISAMBIGUATION = re.compile(r" \(\d+\)$")
+# A grade such as "Very Good Plus (VG+)" reads as its abbreviation.
+_GRADE = re.compile(r"\(([^()]+)\)$")
 _EXTRA_BLANK_LINES = re.compile(r"\n{3,}")
 
 
@@ -259,6 +262,7 @@ def collection_copies(
                 copy,
                 copies_of[copy.release.id],
                 _folder_name(collection, copy.folder_id) if folder is None else None,
+                _condition(copy, collection.fields),
             )
             for number, copy in enumerate(shown, start=first)
         ),
@@ -297,7 +301,7 @@ def collection_url(owner: str) -> str:
     return f"https://www.discogs.com/user/{quote(owner, safe='')}/collection"
 
 
-def _copy_line(copy: Copy, copies_of_release: int, folder_name: str | None) -> str:
+def _copy_line(copy: Copy, copies_of_release: int, folder_name: str | None, condition: str) -> str:
     release = copy.release
     label = release.labels[0] if release.labels else None
     details = [
@@ -307,11 +311,27 @@ def _copy_line(copy: Copy, copies_of_release: int, folder_name: str | None) -> s
         " – ".join(filter(None, [label.name, label.catno])) if label else "",
         f"added {copy.date_added:%Y-%m-%d}",
         f"folder {folder_name}" if folder_name else "",
+        condition,
     ]
     line = " · ".join(filter(None, details)) + f" [release_id={release.id}]"
     if copies_of_release > 1:
         line += f" · one of {copies_of_release} Copies of this Release"
     return line
+
+
+def _condition(copy: Copy, fields: list[CollectionField]) -> str:
+    """The Copy's dropdown fields, such as its Media and Sleeve grades, in the Owner's order.
+
+    Free-text fields are left out to keep the line short.
+    """
+    values = {note.field_id: note.value.strip() for note in copy.notes}
+    shown = []
+    for field in fields:
+        value = values.get(field.id)
+        if field.type == "dropdown" and value:
+            grade = _GRADE.search(value)
+            shown.append(f"{field.name} {grade.group(1) if grade else value}")
+    return ", ".join(shown)
 
 
 def _folder_name(collection: Collection, folder_id: int) -> str:

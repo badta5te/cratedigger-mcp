@@ -22,17 +22,20 @@ async def test_copies_are_listed_newest_first_with_their_release_ids(
     assert text == (
         "Collection of example-owner, newest first: page 1 of 1 (5 Copies)\n"
         "1. Rick Astley — Wonderful You · 1991 · CD, Single, Promo · RCA – RDJ62068-2 · "
-        "added 2026-10-28 · folder CD [release_id=3499619]\n"
+        "added 2026-10-28 · folder CD · Sleeve Condition VG+ [release_id=3499619]\n"
         "2. Rick Astley — Never Gonna Give You Up · 1987 · "
         'Vinyl, 7", 45 RPM, Single, Stereo, CBS Pressing · RCA – PB 41447 · added 2026-10-12 · '
         "folder Uncategorized [release_id=249504] · one of 2 Copies of this Release\n"
         "3. Rick Astley — Original Hit Singles · 1989 · CD, Mini, Single · RCA – PD 42639 · "
-        "added 2026-09-30 · folder CD [release_id=1570630]\n"
+        "added 2026-09-30 · folder CD · Media Condition NM or M-, Sleeve Condition NM or M- "
+        "[release_id=1570630]\n"
         '4. Fishbone — Swim · 1993 · Vinyl, 12", Promo · Columbia – XPR 1948 · '
-        "added 2026-09-14 · folder Records [release_id=1621435]\n"
+        "added 2026-09-14 · folder Records · Media Condition VG+, Sleeve Condition VG+ "
+        "[release_id=1621435]\n"
         "5. Rick Astley — Never Gonna Give You Up · 1987 · "
         'Vinyl, 7", 45 RPM, Single, Stereo, CBS Pressing · RCA – PB 41447 · added 2026-08-02 · '
-        "folder Records [release_id=249504] · one of 2 Copies of this Release\n"
+        "folder Records · Media Condition NM or M-, Sleeve Condition VG+ [release_id=249504] · "
+        "one of 2 Copies of this Release\n"
         "\n"
         "Showing 1–5 of 5. Use discogs_get_release with a release_id for the full card.\n"
         "\n"
@@ -41,6 +44,7 @@ async def test_copies_are_listed_newest_first_with_their_release_ids(
     assert [request.url.path for request in discogs.requests] == [
         "/oauth/identity",
         "/users/example-owner/collection/folders",
+        "/users/example-owner/collection/fields",
         "/users/example-owner/collection/folders/0/releases",
     ]
     assert dict(discogs.requests[-1].url.params) == {
@@ -90,6 +94,7 @@ async def test_after_15_minutes_the_collection_is_fetched_again_but_not_the_user
 
     assert [request.url.path for request in discogs.requests] == [
         "/users/example-owner/collection/folders",
+        "/users/example-owner/collection/fields",
         "/users/example-owner/collection/folders/0/releases",
     ]
 
@@ -166,6 +171,29 @@ async def test_query_finds_artists_credited_under_another_name(
     text = await list_collection(client, query="fishbone")
 
     assert "1. Fish Bone — Swim" in text
+
+
+async def test_condition_shows_every_dropdown_field_but_not_free_text_notes(
+    client: Client[Any], discogs: FakeDiscogs
+) -> None:
+    discogs.collection_fields["fields"] += [
+        {"id": 3, "name": "Notes", "type": "textarea", "position": 3, "public": False, "lines": 3},
+        {"id": 4, "name": "Storage", "type": "dropdown", "position": 4, "options": ["Shelf A"]},
+    ]
+    discogs.collection[0]["notes"] = [
+        {"field_id": 3, "value": "Bought at a fair, sleeve has a sticker"},
+        {"field_id": 2, "value": "Generic"},
+        {"field_id": 4, "value": "Shelf A"},
+        {"field_id": 1, "value": "Mint (M)"},
+    ]
+
+    text = await list_collection(client, limit=1)
+
+    assert (
+        "· folder CD · Media Condition M, Sleeve Condition Generic, Storage Shelf A "
+        "[release_id=3499619]"
+    ) in text
+    assert "sticker" not in text
 
 
 async def test_newest_first_compares_moments_not_text(

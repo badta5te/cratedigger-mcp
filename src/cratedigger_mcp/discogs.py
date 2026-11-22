@@ -220,6 +220,26 @@ class CollectionFolders(_Model):
     folders: list[Folder] = Field(default_factory=list)
 
 
+class CollectionField(_Model):
+    """A field the Owner fills in for each Copy: by default the dropdowns Media Condition and
+    Sleeve Condition; the Owner can add dropdowns and free-text fields of their own."""
+
+    id: int
+    name: str
+    type: str = ""  # dropdown or textarea
+
+
+class CollectionFields(_Model):
+    fields: list[CollectionField] = Field(default_factory=list)
+
+
+class CopyNote(_Model):
+    """The value of one Collection field for one Copy."""
+
+    field_id: int
+    value: str = ""
+
+
 class CollectionRelease(_Model):
     """The Release a Copy is of, as the Collection lists it."""
 
@@ -237,6 +257,7 @@ class Copy(_Model):
     folder_id: int
     date_added: datetime
     release: CollectionRelease = Field(alias="basic_information")
+    notes: list[CopyNote] = Field(default_factory=list)
 
 
 class CollectionPage(_Model):
@@ -255,10 +276,11 @@ class CollectionValue(_Model):
 
 @dataclass(frozen=True)
 class Collection:
-    """Every Copy in the Owner's Collection, newest first, and its folders."""
+    """Every Copy in the Owner's Collection, newest first, its folders and its fields."""
 
     owner: str
     folders: list[Folder]
+    fields: list[CollectionField]
     copies: list[Copy]
 
     def folder(self, folder_id: int) -> Folder | None:
@@ -399,6 +421,7 @@ class DiscogsClient:
         owner = await self.owner_username()
         base = _collection_path(owner)
         folders = await self._get(f"{base}/folders", CollectionFolders)
+        fields = await self._get(f"{base}/fields", CollectionFields)
         copies: list[Copy] = []
         page, pages = 1, 1
         while page <= pages:
@@ -409,7 +432,7 @@ class DiscogsClient:
             )
             copies += found.releases
             page, pages = page + 1, found.pagination.pages
-        return Collection(owner, folders.folders, copies)
+        return Collection(owner, folders.folders, fields.fields, copies)
 
     async def get_collection_summary(self) -> CollectionSummary:
         """The Collection's folders with their counts and Discogs' estimate of its value."""

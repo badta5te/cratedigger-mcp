@@ -367,10 +367,11 @@ def create_server(
 
         Use it for "what do I have", "do I have anything by X", "what did I add recently" or
         to browse one Collection folder. Newest first unless another sort is asked for, and
-        paged. Each line carries the Release, its Format, the folder and the release_id, and
-        marks Releases the Owner has several Copies of. The query matches artist and title
-        text only. Do not use it to find Releases the Owner lacks (use discogs_search), and
-        use discogs_match_collection to check a list of albums from another source.
+        paged. Each line carries the Release, its Format, the folder, the condition (Media and
+        Sleeve grades) and the release_id, and marks Releases the Owner has several Copies
+        of. The query matches artist and title text only. Do not use it to find Releases the
+        Owner lacks (use discogs_search), and use discogs_match_collection to check a list of
+        albums from another source.
         """
         client = discogs_client(ctx)
         try:

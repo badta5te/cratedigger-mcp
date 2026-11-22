@@ -24,7 +24,8 @@ stores nothing on disk.
 >   Releases, with the time each was checked. Prices are kept in memory for an hour.
 > - `discogs_list_collection`: the Copies in your Collection, newest first by default, filtered
 >   by artist or title text, narrowed to one folder, sorted and paged. Each line carries the
->   Release, its Format and the `release_id`, and marks Releases you have several Copies of.
+>   Release, its Format, its condition (Media and Sleeve grades) and the `release_id`, and marks
+>   Releases you have several Copies of.
 > - `discogs_collection_summary`: the number of Copies in each folder and Discogs'
 >   minimum/median/maximum estimate of the Collection's value.
 >

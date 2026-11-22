@@ -83,6 +83,7 @@ class FakeDiscogs:
         # and reports `pagination` for what it holds.
         self.collection: list[Any] = load_fixture("collection_folder_0_releases.json")["releases"]
         self.collection_folders: Any = load_fixture("collection_folders.json")
+        self.collection_fields: Any = load_fixture("collection_fields.json")
         self.collection_value: Any = load_fixture("collection_value.json")
         self.reject_token = False
         self.failing_status: int | None = None
@@ -234,6 +235,8 @@ class FakeDiscogs:
     ) -> httpx2.Response | None:
         if parts == ["collection", "folders"]:
             return httpx2.Response(200, headers=headers, json=self.collection_folders)
+        if parts == ["collection", "fields"]:
+            return httpx2.Response(200, headers=headers, json=self.collection_fields)
         if parts == ["collection", "value"]:
             return httpx2.Response(200, headers=headers, json=self.collection_value)
         if parts == ["collection", "folders", "0", "releases"]:
