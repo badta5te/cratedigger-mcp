@@ -37,7 +37,8 @@ stores nothing on disk.
 >   card of it. Adding a Release that is already wanted succeeds and changes nothing.
 > - `discogs_wantlist_remove`: removes a Want by `release_id`. It is marked destructive and
 >   asks for your confirmation on every call; a Release that is not on the Wantlist is an
->   error. Both Wantlist tools drop the cached Wantlist, so the next listing is fetched afresh.
+>   error. Both Wantlist tools drop the cached Wantlist, so the next listing is fetched afresh;
+>   Discogs' own listing can take about 10 seconds to show the change.
 >   No tool changes your Collection.
 > - `discogs_collection_summary`: the number of Copies in each folder and Discogs'
 >   minimum/median/maximum estimate of the Collection's value.

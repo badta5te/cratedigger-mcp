@@ -87,6 +87,9 @@ class FakeDiscogs:
         self.collection_value: Any = load_fixture("collection_value.json")
         # Every Want on the Wantlist, newest first as captured; served like the Collection.
         self.wantlist: list[Any] = load_fixture("wantlist.json")["wants"]
+        # What the Wantlist listing serves while it lags behind the writes, as Discogs' does for
+        # several seconds; None when it is current.
+        self.listed_wantlist: list[Any] | None = None
         self.reject_token = False
         self.failing_status: int | None = None
         self.unreachable = False
@@ -267,25 +270,32 @@ class FakeDiscogs:
         if parts == ["collection", "folders", "0", "releases"]:
             return self._page(self.collection, "releases", request, headers)
         if parts == ["wants"]:
-            return self._page(self.wantlist, "wants", request, headers)
+            listed = self.wantlist if self.listed_wantlist is None else self.listed_wantlist
+            return self._page(listed, "wants", request, headers)
         return None
 
+    def freeze_wantlist_listing(self) -> None:
+        """Keep serving the Wantlist listing as it is now while writes go on changing it."""
+        self.listed_wantlist = copy.deepcopy(self.wantlist)
+
     def _write_want(self, method: str, release_id: int, headers: dict[str, str]) -> httpx2.Response:
-        """Add (PUT) or remove (DELETE) a Want, as the Discogs API documentation describes it:
-        no writes were captured, so the status codes and bodies come from the docs."""
+        """Add (PUT) or remove (DELETE) a Want, answering as Discogs did in a live check on
+        2026-11-22: 201 with the Want for every PUT, 204 for a DELETE, and the same 404 for a
+        DELETE of a Release not wanted and a PUT of an unknown release_id."""
+        not_wanted = httpx2.Response(
+            404,
+            headers=headers,
+            json={"message": "That release does not exist in the user's wantlist."},
+        )
         wanted = next((want for want in self.wantlist if want["id"] == release_id), None)
         if method == "DELETE":
             if wanted is None:
-                return httpx2.Response(
-                    404, headers=headers, json={"message": "The requested resource was not found."}
-                )
+                return not_wanted
             self.wantlist.remove(wanted)
             return httpx2.Response(204, headers=headers)
         release = self.releases.get(release_id)
         if release is None:
-            return httpx2.Response(
-                404, headers=headers, json=load_fixture("error_404_release.json")
-            )
+            return not_wanted
         if wanted is None:
             wanted = {
                 "id": release_id,
@@ -303,8 +313,7 @@ class FakeDiscogs:
                 },
             }
             self.wantlist.insert(0, wanted)
-        body = {key: value for key, value in wanted.items() if key != "date_added"}
-        return httpx2.Response(201, headers=headers, json=body)
+        return httpx2.Response(201, headers=headers, json=wanted)
 
     def _page(
         self, entries: list[Any], key: str, request: httpx2.Request, headers: dict[str, str]

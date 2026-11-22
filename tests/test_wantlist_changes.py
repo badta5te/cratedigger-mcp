@@ -54,19 +54,15 @@ async def test_a_release_is_added_as_a_want_with_a_short_card(
     assert [want["id"] for want in discogs.wantlist] == [249504, 26304263, 995860, 221824]
 
 
-async def test_adding_a_release_already_wanted_succeeds_and_changes_nothing(
+async def test_adding_a_release_already_wanted_succeeds_without_duplication(
     client: Client[Any], discogs: FakeDiscogs
 ) -> None:
-    await add_want(client, 249504)
+    first = await add_want(client, 249504)
 
-    text = await add_want(client, 249504)
+    again = await add_want(client, 249504)
 
-    assert text.splitlines()[:2] == [
-        "Already on the Wantlist of example-owner since 2026-11-20; nothing changed:",
-        "Never Gonna Give You Up — Rick Astley [release_id=249504]",
-    ]
-    assert writes(discogs) == [("PUT", "/users/example-owner/wants/249504")]
-    assert [want["id"] for want in discogs.wantlist].count(249504) == 1
+    assert again == first
+    assert [want["id"] for want in discogs.wantlist] == [249504, 26304263, 995860, 221824]
 
 
 async def test_a_want_is_removed(client: Client[Any], discogs: FakeDiscogs) -> None:
@@ -74,13 +70,14 @@ async def test_a_want_is_removed(client: Client[Any], discogs: FakeDiscogs) -> N
 
     assert not is_error, text
     assert text == (
-        "Removed from the Wantlist of example-owner:\n"
-        'Rick Astley — Never Gonna Give You Up · 1987 · Vinyl, 12", 45 RPM, Maxi-Single, '
-        "Stereo · RCA – PT 41 448 · added 2026-10-21 [release_id=995860]\n"
+        "Removed release_id=995860 from the Wantlist of example-owner.\n"
         "\n"
         "Data provided by Discogs: https://www.discogs.com/wantlist?user=example-owner"
     )
-    assert writes(discogs) == [("DELETE", "/users/example-owner/wants/995860")]
+    assert [(r.method, r.url.path) for r in discogs.requests] == [
+        ("GET", "/oauth/identity"),
+        ("DELETE", "/users/example-owner/wants/995860"),
+    ]
     assert [want["id"] for want in discogs.wantlist] == [26304263, 221824]
 
 
@@ -94,7 +91,34 @@ async def test_removing_a_release_not_on_the_wantlist_is_a_tool_error(
         "Release 249504 is not on the Wantlist of example-owner. "
         "Use discogs_list_wantlist to find the release_id of the Want."
     )
-    assert writes(discogs) == []
+    assert [want["id"] for want in discogs.wantlist] == [26304263, 995860, 221824]
+
+
+async def test_a_want_added_moments_ago_can_be_removed_while_the_listing_lags(
+    client: Client[Any], discogs: FakeDiscogs
+) -> None:
+    discogs.freeze_wantlist_listing()
+    await add_want(client, 249504)
+    await list_wantlist(client)
+
+    is_error, text = await remove_want(client, 249504)
+
+    assert not is_error, text
+    assert 249504 not in [want["id"] for want in discogs.wantlist]
+
+
+async def test_a_want_removed_moments_ago_can_be_added_again_while_the_listing_lags(
+    client: Client[Any], discogs: FakeDiscogs
+) -> None:
+    await add_want(client, 249504)
+    discogs.freeze_wantlist_listing()
+    is_error, _ = await remove_want(client, 249504)
+    assert not is_error
+    await list_wantlist(client)
+
+    await add_want(client, 249504)
+
+    assert [want["id"] for want in discogs.wantlist].count(249504) == 1
 
 
 async def test_adding_an_unknown_release_is_a_tool_error(
@@ -157,22 +181,15 @@ async def test_no_tool_writes_anything_but_the_wantlist(
     ]
 
 
-async def test_a_want_already_gone_from_discogs_is_a_tool_error_and_refreshes_the_wantlist(
+async def test_a_change_that_leaves_the_first_page_alone_still_refreshes_the_wantlist(
     client: Client[Any], discogs: FakeDiscogs
 ) -> None:
-    # Past the first page and with the total kept, the snapshot cannot see the Want go.
     discogs.add_wants(200)
+    await add_want(client, 249504)
     await list_wantlist(client)
-    gone = next(want for want in discogs.wantlist if want["id"] == 6_000_150)
-    discogs.wantlist.remove(gone)
-    discogs.add_wants(1)
-    discogs.wantlist[-1]["id"] = discogs.wantlist[-1]["basic_information"]["id"] = 6_100_000
-
-    is_error, text = await remove_want(client, 6_000_150)
-
-    assert is_error
-    assert text.startswith("Release 6000150 is not on the Wantlist of example-owner.")
-    assert writes(discogs) == [("DELETE", "/users/example-owner/wants/6000150")]
+    await add_want(client, 249504)
     discogs.requests.clear()
+
     await list_wantlist(client)
+
     assert wants_pages(discogs) == ["1", "2", "3"]

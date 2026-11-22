@@ -101,16 +101,11 @@ def release_card(release: Release, response_format: ResponseFormat = "concise") 
     return "\n".join(lines)
 
 
-def want_added(release: Release, owner: str, existing: Want | None) -> str:
-    """The short card of a Release put on the Wantlist, or already there as `existing`."""
-    heading = (
-        f"Already on the Wantlist of {owner} since {existing.date_added:%Y-%m-%d}; nothing changed:"
-        if existing
-        else f"Added to the Wantlist of {owner}:"
-    )
+def want_added(release: Release, owner: str) -> str:
+    """The short card of a Release put on the Wantlist."""
     return "\n".join(
         [
-            heading,
+            f"Added to the Wantlist of {owner}:",
             *_release_summary(release),
             "",
             attribution(_release_url(release)),
@@ -118,12 +113,10 @@ def want_added(release: Release, owner: str, existing: Want | None) -> str:
     )
 
 
-def want_removed(want: Want, owner: str) -> str:
-    """The line of a Want just taken off the Wantlist."""
+def want_removed(release_id: int, owner: str) -> str:
     return "\n".join(
         [
-            f"Removed from the Wantlist of {owner}:",
-            _want_line(want),
+            f"Removed release_id={release_id} from the Wantlist of {owner}.",
             "",
             attribution(wantlist_url(owner)),
         ]

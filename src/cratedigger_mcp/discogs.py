@@ -314,9 +314,6 @@ class Wantlist:
     owner: str
     wants: list[Want]
 
-    def want(self, release_id: int) -> Want | None:
-        return next((want for want in self.wants if want.id == release_id), None)
-
 
 class _Pacer:
     """Slows requests down when the X-Discogs-Ratelimit-* headers report little quota left.
@@ -497,7 +494,7 @@ class DiscogsClient:
         await self._call("PUT", f"{_wants_path(owner)}/{release_id}")
 
     async def remove_want(self, release_id: int) -> None:
-        """Take a Want off the Owner's Wantlist. Discogs documents HTTP 404 when it is not there."""
+        """Take a Want off the Owner's Wantlist. Discogs answers HTTP 404 when it is not there."""
         owner = await self.owner_username()
         await self._call("DELETE", f"{_wants_path(owner)}/{release_id}")
 
