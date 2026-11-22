@@ -12,6 +12,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Literal
+from urllib.parse import quote
 
 import httpx2
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
@@ -31,6 +32,8 @@ LOW_QUOTA_SHARE = 0.1
 # Waits before each retry of a request Discogs rejected with HTTP 429. Bounded, so a tool call
 # gives up within well under a minute instead of looping.
 RETRY_DELAYS_SECONDS = (5.0, 10.0, 20.0)
+# The largest page Discogs serves; used when every page of a list is fetched.
+FULL_PAGE_SIZE = 100
 
 logger = logging.getLogger(__name__)
 
@@ -114,6 +117,8 @@ class Release(_Model):
 SearchType = Literal["release", "master", "artist", "label"]
 # The orders Discogs can sort a Master's Releases in.
 MasterReleaseSort = Literal["released", "title", "format", "label", "catno", "country"]
+# The orders Copies of the Collection can be listed in.
+CollectionSort = Literal["added", "artist", "title", "year"]
 # The currencies Discogs reports Marketplace prices in.
 Currency = Literal[
     "USD", "GBP", "EUR", "CAD", "AUD", "JPY", "CHF", "MXN", "BRL", "NZD", "SEK", "ZAR"
@@ -199,6 +204,74 @@ class MarketplaceCheck:
     checked_at: datetime
 
 
+class Identity(_Model):
+    username: str
+
+
+class Folder(_Model):
+    """A Collection folder. Folder 0 holds every Copy; folder 1 is Uncategorized."""
+
+    id: int
+    name: str
+    count: int = 0
+
+
+class CollectionFolders(_Model):
+    folders: list[Folder] = Field(default_factory=list)
+
+
+class CollectionRelease(_Model):
+    """The Release a Copy is of, as the Collection lists it."""
+
+    id: int
+    title: str = ""
+    year: int = 0
+    master_id: int = 0  # 0 when the Release is not grouped under a Master
+    artists: list[Artist] = Field(default_factory=list)
+    labels: list[Label] = Field(default_factory=list)
+    formats: list[Format] = Field(default_factory=list)
+
+
+class Copy(_Model):
+    instance_id: int
+    folder_id: int
+    date_added: datetime
+    release: CollectionRelease = Field(alias="basic_information")
+
+
+class CollectionPage(_Model):
+    pagination: Pagination
+    releases: list[Copy] = Field(default_factory=list)
+
+
+class CollectionValue(_Model):
+    """Discogs' estimate of what the Collection is worth: amounts as text with the currency
+    sign, in the currency of the Owner's Discogs settings, e.g. "$1,204.50"."""
+
+    minimum: str
+    median: str
+    maximum: str
+
+
+@dataclass(frozen=True)
+class Collection:
+    """Every Copy in the Owner's Collection, newest first, and its folders."""
+
+    owner: str
+    folders: list[Folder]
+    copies: list[Copy]
+
+    def folder(self, folder_id: int) -> Folder | None:
+        return next((folder for folder in self.folders if folder.id == folder_id), None)
+
+
+@dataclass(frozen=True)
+class CollectionSummary:
+    owner: str
+    folders: list[Folder]
+    value: CollectionValue
+
+
 class _Pacer:
     """Slows requests down when the X-Discogs-Ratelimit-* headers report little quota left.
 
@@ -252,6 +325,10 @@ def _int_header(response: httpx2.Response, name: str) -> int | None:
         return None
 
 
+def _collection_path(owner: str) -> str:
+    return f"/users/{quote(owner, safe='')}/collection"
+
+
 def build_http_client(
     token: str, transport: httpx2.AsyncBaseTransport | None = None
 ) -> httpx2.AsyncClient:
@@ -275,6 +352,8 @@ class DiscogsClient:
         self._http = http
         self._clock = clock
         self._pacer = _Pacer(clock)
+        self._username: str | None = None
+        self._username_lock = asyncio.Lock()
 
     async def get_release(self, release_id: int) -> Release:
         return await self._get(f"/releases/{release_id}", Release)
@@ -306,6 +385,39 @@ class DiscogsClient:
         """
         paged = {**params, "per_page": per_page, "page": page}
         return await self._get(f"/masters/{master_id}/versions", MasterReleasesPage, paged)
+
+    async def owner_username(self) -> str:
+        """The Owner's Discogs username, looked up from the token once per process."""
+        async with self._username_lock:  # parallel tool calls share one lookup
+            if self._username is None:
+                identity = await self._get("/oauth/identity", Identity)
+                self._username = identity.username
+            return self._username
+
+    async def get_collection(self) -> Collection:
+        """Every Copy in the Owner's Collection across all pages, newest first."""
+        owner = await self.owner_username()
+        base = _collection_path(owner)
+        folders = await self._get(f"{base}/folders", CollectionFolders)
+        copies: list[Copy] = []
+        page, pages = 1, 1
+        while page <= pages:
+            found = await self._get(
+                f"{base}/folders/0/releases",
+                CollectionPage,
+                {"per_page": FULL_PAGE_SIZE, "page": page, "sort": "added", "sort_order": "desc"},
+            )
+            copies += found.releases
+            page, pages = page + 1, found.pagination.pages
+        return Collection(owner, folders.folders, copies)
+
+    async def get_collection_summary(self) -> CollectionSummary:
+        """The Collection's folders with their counts and Discogs' estimate of its value."""
+        owner = await self.owner_username()
+        base = _collection_path(owner)
+        folders = await self._get(f"{base}/folders", CollectionFolders)
+        value = await self._get(f"{base}/value", CollectionValue)
+        return CollectionSummary(owner, folders.folders, value)
 
     async def _get[M: BaseModel](
         self, path: str, model: type[M], params: QueryParams | None = None

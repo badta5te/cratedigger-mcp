@@ -25,6 +25,13 @@ async def test_tool_catalog_matches_the_contract(client: Client[Any]) -> None:
     assert catalog == snapshot(
         [
             {
+                "name": "discogs_collection_summary",
+                "title": "Summarize My Discogs Collection",
+                "read_only": True,
+                "destructive": None,
+                "open_world": True,
+            },
+            {
                 "name": "discogs_get_prices",
                 "title": "Get Discogs Marketplace Prices",
                 "read_only": True,
@@ -34,6 +41,13 @@ async def test_tool_catalog_matches_the_contract(client: Client[Any]) -> None:
             {
                 "name": "discogs_get_release",
                 "title": "Get Discogs Release",
+                "read_only": True,
+                "destructive": None,
+                "open_world": True,
+            },
+            {
+                "name": "discogs_list_collection",
+                "title": "List My Discogs Collection",
                 "read_only": True,
                 "destructive": None,
                 "open_world": True,
@@ -88,6 +102,17 @@ async def test_prices_description_says_what_lowest_price_means(client: Client[An
     description = tools["discogs_get_prices"].description or ""
     for term in ("any condition", "excluding shipping", "discogs_wantlist_prices"):
         assert term in description
+
+
+async def test_collection_tools_point_to_the_other_tools(client: Client[Any]) -> None:
+    tools = {tool.name: tool for tool in await client.list_tools()}
+
+    listing = tools["discogs_list_collection"].description or ""
+    for other in ("discogs_search", "discogs_match_collection"):
+        assert other in listing
+    summary = tools["discogs_collection_summary"].description or ""
+    for term in ("folder_id", "discogs_list_collection", "minimum, median and maximum"):
+        assert term in summary
 
 
 async def test_every_tool_explains_itself(client: Client[Any]) -> None:

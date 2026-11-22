@@ -3,14 +3,21 @@
 Every card carries the IDs for the next call and ends with the Discogs attribution.
 """
 
+import math
 import re
+from collections import Counter
 from datetime import UTC
 from typing import Literal
-from urllib.parse import urlencode
+from urllib.parse import quote, urlencode
 
 from cratedigger_mcp.discogs import (
     Artist,
+    Collection,
+    CollectionSort,
+    CollectionSummary,
+    Copy,
     Currency,
+    Folder,
     Format,
     MarketplaceCheck,
     Master,
@@ -37,6 +44,14 @@ MASTER_RELEASE_SORTS: dict[MasterReleaseSort, str] = {
     "country": "country",
 }
 
+# How each sort order of the Collection reads in the heading.
+COLLECTION_SORTS: dict[CollectionSort, str] = {
+    "added": "newest first",
+    "artist": "sorted by artist",
+    "title": "sorted by title",
+    "year": "sorted by year, oldest first",
+}
+
 NOTES_LIMIT = 1500
 _DISAMBIGUATION = re.compile(r" \(\d+\)$")
 _EXTRA_BLANK_LINES = re.compile(r"\n{3,}")
@@ -49,7 +64,7 @@ def attribution(url: str) -> str:
 
 def release_card(release: Release, response_format: ResponseFormat = "concise") -> str:
     lines = [
-        f"{release.title} — {_artist_credit(release.artists)} [release_id={release.id}]",
+        f"{release.title} — {artist_credit(release.artists)} [release_id={release.id}]",
         f"Label: {_labels(release)}",
         f"Format: {_formats(release.formats)}",
         f"Country: {release.country or 'unknown'} · Year: {release.year or 'unknown'}",
@@ -117,9 +132,7 @@ def search_results(
         )
     first = (pagination.page - 1) * pagination.per_page + 1
     last = first + len(found.results) - 1
-    hint = f"Showing {first}–{last} of {pagination.items}."
-    if pagination.page < pagination.pages:
-        hint += f" Use page={pagination.page + 1} for more."
+    hint = _showing(first, last, pagination.items, pagination.page, pagination.pages)
     lines = [
         f"{heading}: page {pagination.page} of {pagination.pages} ({pagination.items} results)",
         *(
@@ -140,7 +153,7 @@ def master_releases(
     pagination = found.pagination
     footer = ["", attribution(master.uri or f"https://www.discogs.com/master/{master.id}")]
     master_label = (
-        f"{master.title} — {_artist_credit(master.artists)}"
+        f"{master.title} — {artist_credit(master.artists)}"
         + (f" ({master.year})" if master.year else "")
         + f" [master_id={master.id}]"
     )
@@ -176,9 +189,7 @@ def master_releases(
     )
     first = (pagination.page - 1) * pagination.per_page + 1
     last = first + len(found.versions) - 1
-    hint = f"Showing {first}–{last} of {pagination.items}."
-    if pagination.page < pagination.pages:
-        hint += f" Use page={pagination.page + 1} for more."
+    hint = _showing(first, last, pagination.items, pagination.page, pagination.pages)
     hint += " Use discogs_get_release with a release_id for the full card."
     lines = [
         f"{heading}: page {pagination.page} of {pagination.pages} ({pagination.items} Releases)",
@@ -191,6 +202,135 @@ def master_releases(
         *footer,
     ]
     return "\n".join(lines)
+
+
+def collection_copies(
+    collection: Collection,
+    chosen: list[Copy],
+    query: str,
+    folder: Folder | None,
+    sort: CollectionSort,
+    limit: int,
+    page: int,
+) -> str:
+    """One page of the chosen Copies, numbered across pages, with a next-page hint.
+
+    `folder` is the folder browsed, None for the whole Collection.
+    """
+    footer = ["", attribution(collection_url(collection.owner))]
+    criteria = [
+        *([f'match "{query}"'] if query else []),
+        *([f"in folder {_folder_label(folder)}"] if folder else []),
+    ]
+    if not chosen:
+        if not criteria:
+            return "\n".join([f"The Collection of {collection.owner} holds no Copies.", *footer])
+        advice = " Try fewer words or another spelling." if query else ""
+        nothing = f"No Copies in the Collection of {collection.owner} {' '.join(criteria)}."
+        return "\n".join([nothing + advice, *footer])
+    pages = math.ceil(len(chosen) / limit)
+    if page > pages:
+        return "\n".join(
+            [
+                f"No Copies on page {page}: the list has {pages} pages of {limit}. "
+                "Use a lower page.",
+                *footer,
+            ]
+        )
+    heading = ", ".join(
+        [
+            f"Collection of {collection.owner}",
+            *([f'Copies matching "{query}"'] if query else []),
+            *([f"folder {_folder_label(folder)}"] if folder else []),
+            COLLECTION_SORTS[sort],
+        ]
+    )
+    copies_of = Counter(copy.release.id for copy in collection.copies)
+    first = (page - 1) * limit + 1
+    shown = chosen[first - 1 : first - 1 + limit]
+    last = first + len(shown) - 1
+    hint = _showing(first, last, len(chosen), page, pages)
+    hint += " Use discogs_get_release with a release_id for the full card."
+    lines = [
+        f"{heading}: page {page} of {pages} ({_copies(len(chosen))})",
+        *(
+            f"{number}. "
+            + _copy_line(
+                copy,
+                copies_of[copy.release.id],
+                _folder_name(collection, copy.folder_id) if folder is None else None,
+            )
+            for number, copy in enumerate(shown, start=first)
+        ),
+        "",
+        hint,
+        *footer,
+    ]
+    return "\n".join(lines)
+
+
+def collection_summary(summary: CollectionSummary) -> str:
+    """The number of Copies in each folder and Discogs' estimate of the Collection's value."""
+    folders = [folder for folder in summary.folders if folder.id != 0]
+    total = next(
+        (folder.count for folder in summary.folders if folder.id == 0),
+        sum(folder.count for folder in folders),
+    )
+    value = summary.value
+    return "\n".join(
+        [
+            f"Collection of {summary.owner}: {_copies(total)}",
+            "Folders:",
+            *(
+                f"  {folder.name}: {_copies(folder.count)} [folder_id={folder.id}]"
+                for folder in folders
+            ),
+            f"Value estimated by Discogs: minimum {value.minimum} · median {value.median} · "
+            f"maximum {value.maximum}",
+            "",
+            attribution(collection_url(summary.owner)),
+        ]
+    )
+
+
+def collection_url(owner: str) -> str:
+    return f"https://www.discogs.com/user/{quote(owner, safe='')}/collection"
+
+
+def _copy_line(copy: Copy, copies_of_release: int, folder_name: str | None) -> str:
+    release = copy.release
+    label = release.labels[0] if release.labels else None
+    details = [
+        f"{artist_credit(release.artists)} — {release.title}",
+        str(release.year) if release.year else "",
+        _formats(release.formats),
+        " – ".join(filter(None, [label.name, label.catno])) if label else "",
+        f"added {copy.date_added:%Y-%m-%d}",
+        f"folder {folder_name}" if folder_name else "",
+    ]
+    line = " · ".join(filter(None, details)) + f" [release_id={release.id}]"
+    if copies_of_release > 1:
+        line += f" · one of {copies_of_release} Copies of this Release"
+    return line
+
+
+def _folder_name(collection: Collection, folder_id: int) -> str:
+    found = collection.folder(folder_id)
+    return found.name if found else f"folder_id={folder_id}"
+
+
+def _folder_label(folder: Folder) -> str:
+    return f"{folder.name} [folder_id={folder.id}]"
+
+
+def _copies(count: int) -> str:
+    return f"{count} Cop{'y' if count == 1 else 'ies'}"
+
+
+def _showing(first: int, last: int, total: int, page: int, pages: int) -> str:
+    """Which numbers of how many the page shows, and how to get the next page."""
+    hint = f"Showing {first}–{last} of {total}."
+    return hint + (f" Use page={page + 1} for more." if page < pages else "")
 
 
 def _master_release(release: MasterRelease, master: Master) -> str:
@@ -230,7 +370,7 @@ def _search_url(search_type: SearchType, query: str) -> str:
     return "https://www.discogs.com/search/?" + urlencode({"q": query, "type": search_type})
 
 
-def _artist_credit(artists: list[Artist]) -> str:
+def artist_credit(artists: list[Artist]) -> str:
     credit = ""
     for artist in artists:
         credit += artist.anv or _DISAMBIGUATION.sub("", artist.name)

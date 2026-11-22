@@ -77,6 +77,13 @@ class FakeDiscogs:
             23: load_fixture("marketplace_stats_nothing_for_sale.json"),
             3341754: load_fixture("marketplace_stats_blocked.json"),
         }
+        # The Owner the token belongs to; the Owner's endpoints answer 404 for any other name.
+        self.identity: Any = load_fixture("identity.json")
+        # Every Copy in the Collection, newest first as captured; the fake pages through them
+        # and reports `pagination` for what it holds.
+        self.collection: list[Any] = load_fixture("collection_folder_0_releases.json")["releases"]
+        self.collection_folders: Any = load_fixture("collection_folders.json")
+        self.collection_value: Any = load_fixture("collection_value.json")
         self.reject_token = False
         self.failing_status: int | None = None
         self.unreachable = False
@@ -159,6 +166,12 @@ class FakeDiscogs:
                 return self._master_releases(master_id, request, headers)
         if len(parts) == 3 and parts[:2] == ["marketplace", "stats"] and parts[2].isdigit():
             return self._marketplace_stats(int(parts[2]), request, headers)
+        if parts == ["oauth", "identity"]:
+            return httpx2.Response(200, headers=headers, json=self.identity)
+        if len(parts) >= 3 and parts[0] == "users" and parts[1] == self.identity["username"]:
+            owned = self._owner_resource(parts[2:], request, headers)
+            if owned is not None:
+                return owned
         return httpx2.Response(
             404, headers=headers, json={"message": "The requested resource was not found."}
         )
@@ -203,6 +216,52 @@ class FakeDiscogs:
             found["versions"] = []
         pagination.update(page=page, per_page=per_page, pages=pages)
         return httpx2.Response(200, headers=headers, json=found)
+
+    def add_copies(self, count: int) -> None:
+        """Add `count` older Copies to the Collection, copies of a captured one, so that the
+        Collection spans several pages."""
+        template = self.collection[-1]
+        for number in range(1, count + 1):
+            copy_ = copy.deepcopy(template)
+            copy_["instance_id"] = 1_400_000_000 + number
+            copy_["id"] = copy_["basic_information"]["id"] = 5_000_000 + number
+            copy_["basic_information"]["title"] = f"Filler {number}"
+            copy_["date_added"] = f"2025-01-01T00:00:{number % 60:02d}-08:00"
+            self.collection.append(copy_)
+
+    def _owner_resource(
+        self, parts: list[str], request: httpx2.Request, headers: dict[str, str]
+    ) -> httpx2.Response | None:
+        if parts == ["collection", "folders"]:
+            return httpx2.Response(200, headers=headers, json=self.collection_folders)
+        if parts == ["collection", "value"]:
+            return httpx2.Response(200, headers=headers, json=self.collection_value)
+        if parts == ["collection", "folders", "0", "releases"]:
+            return self._collection_page(request, headers)
+        return None
+
+    def _collection_page(self, request: httpx2.Request, headers: dict[str, str]) -> httpx2.Response:
+        """Serve one page of every Copy. Like Discogs, a page past the last one is HTTP 404."""
+        params = request.url.params
+        page = int(params.get("page", "1"))
+        per_page = int(params.get("per_page", "50"))
+        items = len(self.collection)
+        pages = max(1, math.ceil(items / per_page))
+        if page > pages:
+            return httpx2.Response(
+                404,
+                headers=headers,
+                json={"message": f"Page {page} is outside of valid range [1, {pages}]."},
+            )
+        start = (page - 1) * per_page
+        return httpx2.Response(
+            200,
+            headers=headers,
+            json={
+                "pagination": {"page": page, "pages": pages, "per_page": per_page, "items": items},
+                "releases": self.collection[start : start + per_page],
+            },
+        )
 
     def _marketplace_stats(
         self, release_id: int, request: httpx2.Request, headers: dict[str, str]

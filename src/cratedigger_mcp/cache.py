@@ -11,6 +11,7 @@ from cratedigger_mcp.clock import Clock
 
 CATALOG_TTL = timedelta(hours=1)
 PRICE_TTL = timedelta(hours=1)
+COLLECTION_TTL = timedelta(minutes=15)
 
 
 class _Entry(NamedTuple):

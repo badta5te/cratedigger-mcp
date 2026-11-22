@@ -12,9 +12,11 @@ from fastmcp import Context, FastMCP
 from fastmcp.exceptions import ToolError
 from pydantic import Field, ValidationError
 
-from cratedigger_mcp.cache import CATALOG_TTL, PRICE_TTL, TtlCache
+from cratedigger_mcp.cache import CATALOG_TTL, COLLECTION_TTL, PRICE_TTL, TtlCache
 from cratedigger_mcp.clock import Clock, SystemClock
+from cratedigger_mcp.collection import select_copies
 from cratedigger_mcp.discogs import (
+    CollectionSort,
     Currency,
     DiscogsClient,
     DiscogsError,
@@ -26,6 +28,8 @@ from cratedigger_mcp.discogs import (
 )
 from cratedigger_mcp.formatting import (
     ResponseFormat,
+    collection_copies,
+    collection_summary,
     marketplace_prices,
     master_releases,
     release_card,
@@ -330,6 +334,82 @@ def create_server(
                 "again."
             )
         return marketplace_prices(checks, chosen)
+
+    @mcp.tool(title="List My Discogs Collection", annotations=READ_ONLY, output_schema=None)
+    async def discogs_list_collection(
+        ctx: Context,
+        query: Annotated[
+            str,
+            Field(
+                description="Only Copies whose artist or title contain every word of this "
+                "text, ignoring case, e.g. 'astley'."
+            ),
+        ] = "",
+        folder_id: Annotated[
+            int,
+            Field(
+                description="Only this Collection folder; 0 (default) for every folder. "
+                "discogs_collection_summary lists the folders.",
+                ge=0,
+            ),
+        ] = 0,
+        sort: Annotated[
+            CollectionSort,
+            Field(
+                description="Order of the list: added (default, newest first), artist, title "
+                "or year (oldest first)."
+            ),
+        ] = "added",
+        limit: Annotated[int, Field(description="Copies per page.", ge=1, le=50)] = 20,
+        page: Annotated[int, Field(description="Page of Copies, from 1.", ge=1)] = 1,
+    ) -> str:
+        """List the Copies in the Owner's own Discogs Collection: vinyl, CDs, any Format.
+
+        Use it for "what do I have", "do I have anything by X", "what did I add recently" or
+        to browse one Collection folder. Newest first unless another sort is asked for, and
+        paged. Each line carries the Release, its Format, the folder and the release_id, and
+        marks Releases the Owner has several Copies of. The query matches artist and title
+        text only. Do not use it to find Releases the Owner lacks (use discogs_search), and
+        use discogs_match_collection to check a list of albums from another source.
+        """
+        client = discogs_client(ctx)
+        try:
+            collection = await cache.get_or_load(
+                ("collection",), COLLECTION_TTL, client.get_collection
+            )
+        except DiscogsError as error:
+            raise tool_error(error) from None
+        query = query.strip()
+        folder = collection.folder(folder_id) if folder_id else None
+        if folder_id and folder is None:
+            listed = ", ".join(
+                f"{known.name} [folder_id={known.id}]" for known in collection.folders
+            )
+            raise ToolError(
+                f"Folder {folder_id} not found in the Collection of {collection.owner}. "
+                f"Its folders: {listed}."
+            )
+        chosen = select_copies(collection, query, folder_id, sort)
+        return collection_copies(collection, chosen, query, folder, sort, limit, page)
+
+    @mcp.tool(title="Summarize My Discogs Collection", annotations=READ_ONLY, output_schema=None)
+    async def discogs_collection_summary(ctx: Context) -> str:
+        """Summarize the Owner's own Discogs Collection: its size and what it is worth.
+
+        Shows the number of Copies in the Collection and in each of its folders, with the
+        folder_id for discogs_list_collection, and Discogs' minimum, median and maximum
+        estimate of the Collection's value, as Discogs reports it in the currency of the
+        Owner's Discogs settings. Use discogs_list_collection to see the Copies themselves and
+        discogs_get_prices for the Lowest price of particular Releases.
+        """
+        client = discogs_client(ctx)
+        try:
+            summary = await cache.get_or_load(
+                ("collection_summary",), COLLECTION_TTL, client.get_collection_summary
+            )
+        except DiscogsError as error:
+            raise tool_error(error) from None
+        return collection_summary(summary)
 
     @mcp.prompt(title="Identify a Discogs Release")
     def identify_release(
