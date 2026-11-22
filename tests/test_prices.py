@@ -26,7 +26,7 @@ async def test_lowest_price_and_copies_for_sale_of_a_release(
     assert text == (
         "Marketplace prices in EUR. Lowest price: the cheapest current listing in any "
         "condition, excluding shipping; not a market value.\n"
-        "release_id=249504: Lowest price 0.48 EUR · 124 for sale · checked 2026-11-20 12:00 UTC\n"
+        "release_id=249504: Lowest price 12.50 EUR · 7 for sale · checked 2026-11-20 12:00 UTC\n"
         "\n"
         "Data provided by Discogs: https://www.discogs.com/sell/release/249504"
     )
@@ -41,7 +41,7 @@ async def test_nothing_for_sale_and_blocked_from_sale_are_answers(
     text = await get_prices(client, 249504, 23, 3341754, 249504)
 
     assert text.splitlines()[1:] == [
-        "release_id=249504: Lowest price 0.48 EUR · 124 for sale · checked 2026-11-20 12:00 UTC",
+        "release_id=249504: Lowest price 12.50 EUR · 7 for sale · checked 2026-11-20 12:00 UTC",
         "release_id=23: nothing for sale right now · checked 2026-11-20 12:00 UTC",
         "release_id=3341754: blocked from sale on the Discogs Marketplace · "
         "checked 2026-11-20 12:00 UTC",
@@ -63,7 +63,7 @@ async def test_default_currency_comes_from_settings(
 
     assert discogs.requests[0].url.params["curr_abbr"] == "GBP"
     assert text.startswith("Marketplace prices in GBP.")
-    assert "Lowest price 0.48 GBP" in text
+    assert "Lowest price 12.50 GBP" in text
 
 
 @pytest.mark.parametrize("settings", [Settings(discogs_token=TEST_TOKEN, discogs_currency="GBP")])
@@ -140,7 +140,7 @@ async def test_cached_price_keeps_the_time_it_was_checked(
         "/marketplace/stats/23",
     ]
     assert (
-        "release_id=249504: Lowest price 0.48 EUR · 124 for sale · checked 2026-11-20 12:00" in text
+        "release_id=249504: Lowest price 12.50 EUR · 7 for sale · checked 2026-11-20 12:00" in text
     )
     assert "release_id=23: nothing for sale right now · checked 2026-11-20 12:30 UTC" in text
 

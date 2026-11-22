@@ -7,8 +7,8 @@
   "versions_url": "https://api.discogs.com/masters/96559/versions",
   "main_release_url": "https://api.discogs.com/releases/221824",
   "most_recent_release_url": "https://api.discogs.com/releases/3341754",
-  "num_for_sale": 873,
-  "lowest_price": 0.1,
+  "num_for_sale": 40,
+  "lowest_price": 5.0,
   "genres": [
     "Electronic",
     "Pop"
