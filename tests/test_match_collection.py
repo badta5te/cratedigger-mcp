@@ -246,3 +246,88 @@ async def test_a_long_list_of_matching_releases_is_cut_short(
         "Vinyl [release_id=501]; Kind Of Blue · 1960 · Vinyl [release_id=502]; Kind Of Blue · "
         "1961 · Vinyl [release_id=503]; and 2 more Releases"
     )
+
+
+async def test_a_reissue_under_the_same_master_counts_whatever_its_title(
+    client: Client[Any], discogs: FakeDiscogs
+) -> None:
+    add_copy(discogs, 601, "Fleetwood Mac", "Rumours (Expanded Edition)", 12345, "CD", 2004)
+    add_copy(discogs, 602, "Fleetwood Mac", "Rumours / The Alternate Album", 12345, year=2013)
+
+    text = await match(client, ("Fleetwood Mac", "Rumours (Super Deluxe)"))
+
+    assert album_line(text) == (
+        "1. Fleetwood Mac — Rumours (Super Deluxe): in Collection: Rumours (Expanded Edition) · "
+        "2004 · CD [release_id=601]; Rumours / The Alternate Album · 2013 · Vinyl "
+        "[release_id=602]"
+    )
+
+
+@pytest.mark.parametrize(
+    "title", ["Pet Sounds (Mono)", "Pet Sounds [Stereo]", "Pet Sounds (Bonus Track Version)"]
+)
+async def test_mono_stereo_and_bonus_track_editions_are_the_same_album(
+    client: Client[Any], discogs: FakeDiscogs, title: str
+) -> None:
+    add_copy(discogs, 701, "The Beach Boys", "Pet Sounds", 33333, year=1966)
+
+    text = await match(client, ("The Beach Boys", title))
+
+    assert ": in Collection: Pet Sounds · 1966 · Vinyl [release_id=701]" in album_line(text)
+
+
+async def test_a_shorter_title_under_another_master_is_possible_too(
+    client: Client[Any], discogs: FakeDiscogs
+) -> None:
+    add_copy(discogs, 801, "Radiohead", "OK Computer", 21491, year=1997)
+
+    text = await match(client, ("Radiohead", "OK Computer OKNOTOK 1997 2017"))
+
+    assert album_line(text) == (
+        "1. Radiohead — OK Computer OKNOTOK 1997 2017: possible: OK Computer · 1997 · Vinyl · "
+        "in Collection [release_id=801]"
+    )
+
+
+@pytest.mark.parametrize(
+    ("owned", "asked", "result"),
+    [
+        (("Ed Sheeran", "+"), ("Ed Sheeran", "+"), "in Collection"),
+        (("!!!", "Myth Takes"), ("!!!", "Myth Takes"), "in Collection"),
+        (("Ed Sheeran", "+"), ("Ed Sheeran", "÷"), "absent"),
+        (("Nirvana", "ネヴァーマインド"), ("Nirvana", "ネウァーマイント"), "absent"),
+        (("Nirvana", "ネヴァーマインド"), ("nirvana", "ネヴァーマインド"), "in Collection"),
+        (("Harmonia", "Deluxe"), ("Harmonia", "Deluxe"), "in Collection"),
+        (("Someone", "Stereo Mono"), ("Someone", "Mono"), "possible"),
+        (
+            ("Someone", "Greatest Hits Vol. 2"),
+            ("Someone", "Greatest Hits Vol. 2 Deluxe"),
+            "in Collection",
+        ),
+        (("Someone", "Greatest Hits Vol. 2"), ("Someone", "Greatest Hits Vol. 3"), "absent"),
+    ],
+)
+async def test_names_made_of_symbols_scripts_or_qualifiers_keep_their_meaning(
+    client: Client[Any],
+    discogs: FakeDiscogs,
+    owned: tuple[str, str],
+    asked: tuple[str, str],
+    result: str,
+) -> None:
+    add_copy(discogs, 901, *owned)
+
+    text = await match(client, asked)
+
+    assert album_line(text).split(": ")[1] == result
+
+
+async def test_a_blank_artist_or_title_is_rejected(
+    client: Client[Any], discogs: FakeDiscogs
+) -> None:
+    is_error, text = await call_tool_text(
+        client, "discogs_match_collection", {"albums": [{"artist": "  ", "title": "Swim"}]}
+    )
+
+    assert is_error
+    assert "String should have at least 1 character" in text
+    assert discogs.requests == []

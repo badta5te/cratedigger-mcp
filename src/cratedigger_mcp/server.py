@@ -21,6 +21,7 @@ from cratedigger_mcp.cache import (
 from cratedigger_mcp.clock import Clock, SystemClock
 from cratedigger_mcp.collection import select_copies, select_wants
 from cratedigger_mcp.discogs import (
+    Collection,
     CollectionSort,
     Currency,
     DiscogsClient,
@@ -29,6 +30,7 @@ from cratedigger_mcp.discogs import (
     NotFoundError,
     SearchType,
     UnauthorizedError,
+    Wantlist,
     build_http_client,
 )
 from cratedigger_mcp.formatting import (
@@ -123,6 +125,24 @@ def create_server(
     def discogs_client(ctx: Context) -> DiscogsClient:
         client: DiscogsClient = ctx.lifespan_context["discogs"]
         return client
+
+    async def owner_collection(ctx: Context) -> Collection:
+        """The Collection snapshot, checked against Discogs (ADR-0003)."""
+        try:
+            return await cache.revalidate(
+                ("collection",), OWNER_SNAPSHOT_TTL, discogs_client(ctx).get_collection
+            )
+        except DiscogsError as error:
+            raise tool_error(error) from None
+
+    async def owner_wantlist(ctx: Context) -> Wantlist:
+        """The Wantlist snapshot, checked against Discogs (ADR-0003)."""
+        try:
+            return await cache.revalidate(
+                ("wantlist",), OWNER_SNAPSHOT_TTL, discogs_client(ctx).get_wantlist
+            )
+        except DiscogsError as error:
+            raise tool_error(error) from None
 
     @mcp.tool(title="Get Discogs Release", annotations=READ_ONLY, output_schema=None)
     async def discogs_get_release(
@@ -381,13 +401,7 @@ def create_server(
         Owner lacks (use discogs_search), and use discogs_match_collection to check a list of
         albums from another source.
         """
-        client = discogs_client(ctx)
-        try:
-            collection = await cache.revalidate(
-                ("collection",), OWNER_SNAPSHOT_TTL, client.get_collection
-            )
-        except DiscogsError as error:
-            raise tool_error(error) from None
+        collection = await owner_collection(ctx)
         query = query.strip()
         folder = collection.folder(folder_id) if folder_id else None
         if folder_id and folder is None:
@@ -424,13 +438,7 @@ def create_server(
         to find Releases in the catalog (use discogs_search) or to see what the Owner already
         has (use discogs_list_collection).
         """
-        client = discogs_client(ctx)
-        try:
-            wantlist = await cache.revalidate(
-                ("wantlist",), OWNER_SNAPSHOT_TTL, client.get_wantlist
-            )
-        except DiscogsError as error:
-            raise tool_error(error) from None
+        wantlist = await owner_wantlist(ctx)
         query = query.strip()
         return wantlist_wants(wantlist, select_wants(wantlist, query), query, limit, page)
 
@@ -465,16 +473,8 @@ def create_server(
         another Master. It reads only the Owner's Collection and Wantlist, never the catalog:
         do not call discogs_search album by album, and use discogs_list_collection to browse.
         """
-        client = discogs_client(ctx)
-        try:
-            collection = await cache.revalidate(
-                ("collection",), OWNER_SNAPSHOT_TTL, client.get_collection
-            )
-            wantlist = await cache.revalidate(
-                ("wantlist",), OWNER_SNAPSHOT_TTL, client.get_wantlist
-            )
-        except DiscogsError as error:
-            raise tool_error(error) from None
+        collection = await owner_collection(ctx)
+        wantlist = await owner_wantlist(ctx)
         return album_matches(match_albums(albums, collection, wantlist), collection, wantlist)
 
     @mcp.tool(title="Summarize My Discogs Collection", annotations=READ_ONLY, output_schema=None)

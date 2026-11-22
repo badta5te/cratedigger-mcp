@@ -19,24 +19,29 @@ from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, StringConstraints
 
 from cratedigger_mcp.discogs import Collection, CollectionRelease, Copy, Want, Wantlist
 
 # Words that mark an edition rather than a different album. "remaster" counts as a stem.
 _QUALIFIERS = frozenset(
-    {"deluxe", "expanded", "anniversary", "legacy", "edition", "mono", "stereo"}
+    {"deluxe", "expanded", "anniversary", "legacy", "edition", "mono", "stereo", "bonus"}
 )
 # Words that go with a qualifier, as in "2011 Remaster" or "50th Anniversary Super Deluxe".
 _FILLERS = frozenset(
-    {"super", "special", "collector", "collectors", "limited", "version", "bonus", "track"}
-    | {"tracks", "digital", "original", "mix", "the", "and", "remix"}
+    {"super", "special", "collector", "collectors", "limited", "version", "track", "tracks"}
+    | {"digital", "original", "mix", "the", "and", "remix"}
 )
+# Words a number belongs to as part of the title, as in "Vol. 2 Deluxe".
+_NUMBERED = frozenset({"vol", "volume", "part", "pt", "no", "chapter", "book", "disc"})
+_NUMBER = re.compile(r"\d+")
 _ORDINAL = re.compile(r"\d+(st|nd|rd|th)?")
 _BRACKETED = re.compile(r"[(\[{]([^()\[\]{}]*)[)\]}]")
 _DISAMBIGUATION = re.compile(r" \(\d+\)$")
 # Letters that Unicode does not decompose into a base letter and a mark.
 _LETTERS = str.maketrans({"ø": "o", "æ": "ae", "œ": "oe", "ł": "l", "đ": "d", "ð": "d"})
+# The combining accents of the Latin, Greek and Cyrillic letters.
+_COMBINING_ACCENT = re.compile("[\u0300-\u036f]")
 # Marks dropped without a space, so that "R.E.M." reads as "rem" and "Don't" as "dont".
 _JOINING = str.maketrans("", "", ".'\u2019\u02bc`")
 
@@ -48,8 +53,16 @@ MATCH_RESULTS: tuple[MatchResult, ...] = ("in Collection", "on Wantlist", "possi
 class Album(BaseModel):
     """An album as another source names it."""
 
-    artist: Annotated[str, Field(description="The artist, e.g. 'The Beatles'.", min_length=1)]
-    title: Annotated[str, Field(description="The album title, e.g. 'Abbey Road'.", min_length=1)]
+    artist: Annotated[
+        str,
+        StringConstraints(strip_whitespace=True, min_length=1),
+        Field(description="The artist, e.g. 'The Beatles'."),
+    ]
+    title: Annotated[
+        str,
+        StringConstraints(strip_whitespace=True, min_length=1),
+        Field(description="The album title, e.g. 'Abbey Road'."),
+    ]
 
 
 @dataclass(frozen=True)
@@ -78,13 +91,13 @@ def _match(album: Album, copies: "_Index[Copy]", wants: "_Index[Want]") -> Album
     title = _title_words(album.title)
     if not artist or not title:
         return AlbumMatch(album, "absent")
-    seeds = [*copies.same_album(artist, title), *wants.same_album(artist, title)]
-    masters = {release.master_id for release in seeds if release.master_id}
-    seed_ids = {release.id for release in seeds}
-    owned = copies.of(seed_ids, masters)
+    same_titled = [*copies.same_album(artist, title), *wants.same_album(artist, title)]
+    masters = {release.master_id for release in same_titled if release.master_id}
+    release_ids = {release.id for release in same_titled}
+    owned = copies.of_releases_or_masters(release_ids, masters)
     if owned:
         return AlbumMatch(album, "in Collection", copies=owned)
-    wanted = wants.of(seed_ids, masters)
+    wanted = wants.of_releases_or_masters(release_ids, masters)
     if wanted:
         return AlbumMatch(album, "on Wantlist", wants=wanted)
     similar_copies = copies.similar(artist, title)
@@ -122,7 +135,7 @@ class _Index[E]:
             if _key(found.title) == _key(title)
         ]
 
-    def of(self, release_ids: set[int], masters: set[int]) -> list[E]:
+    def of_releases_or_masters(self, release_ids: set[int], masters: set[int]) -> list[E]:
         """The entries of these Releases or of any Release of these Masters."""
         return [
             found.entry
@@ -163,18 +176,22 @@ def _title_words(title: str) -> tuple[str, ...]:
 
 def _without_trailing_qualifiers(words: tuple[str, ...]) -> tuple[str, ...]:
     """`words` without trailing qualifiers such as "Remastered 2009" or "Deluxe Edition", unless
-    nothing would be left."""
+    only qualifiers would be left, as in an album called "Mono" or "Deluxe"."""
     end = len(words)
-    while end > 1 and _qualifier_or_filler(words[end - 1]):
+    while end > 1 and _qualifier_or_filler(words[end - 1], before=words[end - 2]):
         end -= 1
-    return words[:end] if _qualifies(words[end:]) else words
+    if (end == 1 and _qualifier_or_filler(words[0])) or not _qualifies(words[end:]):
+        return words
+    return words[:end]
 
 
 def _qualifies(words: Iterable[str]) -> bool:
     return any(word in _QUALIFIERS or word.startswith("remaster") for word in words)
 
 
-def _qualifier_or_filler(word: str) -> bool:
+def _qualifier_or_filler(word: str, before: str = "") -> bool:
+    if _NUMBER.fullmatch(word) and before in _NUMBERED:
+        return False
     return (
         word in _QUALIFIERS
         or word in _FILLERS
@@ -188,13 +205,20 @@ def _without_the(words: tuple[str, ...]) -> tuple[str, ...]:
 
 
 def _words(text: str) -> tuple[str, ...]:
-    """The words of `text` in lower case, without diacritics or punctuation, "&" as "and"."""
+    """The words of `text` in lower case, without diacritics or punctuation, "&" as "and".
+
+    Only the Latin, Greek and Cyrillic accents go, so that kana keep their voicing marks. A
+    name of symbols alone, such as "+" or "!!!", is one word of its symbols.
+    """
     decomposed = unicodedata.normalize("NFKD", text.casefold().translate(_LETTERS))
-    plain = "".join(char for char in decomposed if not unicodedata.combining(char))
+    plain = unicodedata.normalize(
+        "NFC", "".join(char for char in decomposed if not _COMBINING_ACCENT.match(char))
+    )
     spaced = "".join(
         char if char.isalnum() else " " for char in plain.replace("&", " and ").translate(_JOINING)
     )
-    return tuple(spaced.split())
+    symbols = "".join(text.casefold().split())
+    return tuple(spaced.split()) or ((symbols,) if symbols else ())
 
 
 def _key(words: tuple[str, ...]) -> str:

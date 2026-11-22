@@ -378,8 +378,8 @@ def _album_match(found: AlbumMatch) -> str:
             return f"{album}: {_matched_releases([want.release for want in found.wants])}"
         case "possible":
             candidates = [
-                *(_matched_release(copy.release, 1, "in Collection") for copy in found.copies),
-                *(_matched_release(want.release, 1, "on Wantlist") for want in found.wants),
+                *(_matched_release(copy.release, where="in Collection") for copy in found.copies),
+                *(_matched_release(want.release, where="on Wantlist") for want in found.wants),
             ]
             return f"{album}: " + _first_few(list(dict.fromkeys(candidates)))
         case "absent":
@@ -393,7 +393,8 @@ def _matched_releases(releases: list[CollectionRelease]) -> str:
     return _first_few([_matched_release(release, entries[release.id]) for release in unique])
 
 
-def _matched_release(release: CollectionRelease, copies: int, where: str = "") -> str:
+def _matched_release(release: CollectionRelease, copies: int = 1, where: str = "") -> str:
+    """The Release with its Format, the number of Copies of it when several, and where it is."""
     details = [
         release.title,
         str(release.year) if release.year else "",
@@ -412,11 +413,12 @@ def _first_few(items: list[str]) -> str:
 
 def _medium_names(formats: list[Format]) -> str:
     """The Formats without their details, e.g. "2 × Vinyl + CD"."""
-    names = [
-        (f"{medium.qty} × " if medium.qty not in ("", "1") else "") + medium.name
-        for medium in formats
-    ]
-    return " + ".join(names) or "unknown Format"
+    return " + ".join(_quantity(medium) + medium.name for medium in formats) or "unknown"
+
+
+def _quantity(medium: Format) -> str:
+    """How many of the medium a Release has, as in "2 × Vinyl", when more than one."""
+    return f"{medium.qty} × " if medium.qty not in ("", "1") else ""
 
 
 def wantlist_url(owner: str) -> str:
@@ -551,8 +553,7 @@ def _formats(formats: list[Format]) -> str:
     rendered = []
     for medium in formats:
         parts = [medium.name, *medium.descriptions, *([medium.text] if medium.text else [])]
-        quantity = f"{medium.qty} × " if medium.qty not in ("", "1") else ""
-        rendered.append(quantity + ", ".join(parts))
+        rendered.append(_quantity(medium) + ", ".join(parts))
     return " + ".join(rendered) or "unknown"
 
 
