@@ -58,9 +58,19 @@ Cratedigger for Discogs: the Owner's window onto Discogs, the vinyl and music da
 Marketplace. Use these tools for the Discogs catalog (Masters, Releases and pressings: label, \
 catalog number, Format, country, year, matrix/runout and barcode identifiers), Marketplace \
 prices of Releases, and the Owner's own Collection and Wantlist on Discogs. \
-Every response carries the release_id or master_id needed for the next call. \
-To check a list of albums from another source (listening history, playlists) against the \
-Owner's shelf, use discogs_match_collection rather than searching album by album. \
+Every response carries the release_id or master_id needed for the next call.
+
+Which tool to use:
+- Find something in the catalog by name or by what is printed on a record: discogs_search. \
+One Release in detail: discogs_get_release. Every edition of an album: \
+discogs_list_master_releases.
+- What particular Releases cost: discogs_get_prices. What the Wants cost: \
+discogs_wantlist_prices.
+- What the Owner has: discogs_list_collection, and discogs_collection_summary for its size \
+and value. What the Owner wants: discogs_list_wantlist.
+- To check a list of albums from another source (listening history, playlists) against the \
+Owner's shelf, use discogs_match_collection rather than searching album by album.
+
 The Collection is read-only. Wants are added with discogs_wantlist_add and removed, only \
 when the Owner asks, with discogs_wantlist_remove."""
 
@@ -232,8 +242,9 @@ def create_server(
         what exactly a pressing is: label, catalog number, Format, country, year, tracklist,
         how many Discogs users have or want it, and its Master. Ask for the detailed form to
         tell near-identical pressings apart by matrix/runout etchings, barcode and notes.
-        Do not use it to find a Release by name (use discogs_search) or for prices
-        (use discogs_get_prices).
+        Do not use it to find a Release by name (use discogs_search), to compare every
+        edition of an album (use discogs_list_master_releases with the master_id on the card)
+        or for prices (use discogs_get_prices).
         """
         return release_card(await catalog_release(ctx, release_id), response_format)
 
@@ -278,9 +289,11 @@ def create_server(
         Use it to find a release_id or master_id by name, or to find the exact pressing the
         Owner is holding by narrowing with artist, year, Format, country, catalog number or
         barcode. Each result carries the release_id/master_id for discogs_get_release and the
-        other tools. Results are paged: the response states the page and the total.
-        Do not use it to check what the Owner has or wants: use discogs_list_collection or
-        discogs_list_wantlist, and discogs_match_collection for a list of albums.
+        other tools. Results are paged: the response states the page and the total. To
+        compare every edition of an album, pass its master_id to discogs_list_master_releases
+        instead of paging through Release results. Do not use it to check what the Owner has
+        or wants: use discogs_list_collection or discogs_list_wantlist, and
+        discogs_match_collection for a list of albums.
         """
         filters = given_filters(
             artist=artist, year=year, format=format, country=country, catno=catno, barcode=barcode
@@ -339,7 +352,8 @@ def create_server(
         Use it to compare the available editions of an album by country, year, label, catalog
         number and Format, narrowed to one Format, country or year. Each line carries the
         release_id for discogs_get_release. Results are sorted by release date unless another
-        sort is asked for, and paged.
+        sort is asked for, and paged. Compare the prices of the editions found with
+        discogs_get_prices, and open one of them with discogs_get_release.
         Find the master_id with discogs_search (type="master") or on a Release card.
         """
         filters = given_filters(format=format, country=country, year=year)
@@ -390,8 +404,8 @@ def create_server(
         whether the Release is blocked from sale, with the time Discogs reported it. The Lowest
         price is the cheapest current listing in any condition, excluding shipping: not a
         market value. Use it to compare editions by price, for example after
-        discogs_list_master_releases. For the prices of the Owner's Wantlist use
-        discogs_wantlist_prices.
+        discogs_list_master_releases; find unknown release_ids with discogs_search first.
+        For the prices of the Owner's Wantlist use discogs_wantlist_prices.
         """
         chosen = currency or settings.discogs_currency
         checks, unknown = [], []
@@ -448,8 +462,9 @@ def create_server(
         paged. Each line carries the Release, its Format, the folder, the condition (Media and
         Sleeve grades) and the release_id, and marks Releases the Owner has several Copies
         of. The query matches artist and title text only. Do not use it to find Releases the
-        Owner lacks (use discogs_search), and use discogs_match_collection to check a list of
-        albums from another source.
+        Owner lacks (use discogs_search), use discogs_match_collection to check a list of
+        albums from another source, and discogs_collection_summary for the size of each folder
+        and the value of the Collection.
         """
         collection = await owner_collection(ctx)
         query = query.strip()
@@ -659,11 +674,13 @@ def create_server(
     async def discogs_collection_summary(ctx: Context) -> str:
         """Summarize the Owner's own Discogs Collection: its size and what it is worth.
 
-        Shows the number of Copies in the Collection and in each of its folders, with the
-        folder_id for discogs_list_collection, and Discogs' minimum, median and maximum
-        estimate of the Collection's value, as Discogs reports it in the currency of the
-        Owner's Discogs settings. Use discogs_list_collection to see the Copies themselves and
-        discogs_get_prices for the Lowest price of particular Releases.
+        Use it for "how many records do I have", "what is my Collection worth" or to find the
+        folders of the Collection. Shows the number of Copies in the Collection and in each of
+        its folders, with the folder_id for discogs_list_collection, and Discogs'
+        minimum, median and maximum estimate of the Collection's value, as Discogs reports it
+        in the currency of the Owner's Discogs settings. Use discogs_list_collection to see
+        the Copies themselves and discogs_get_prices for the Lowest price of particular
+        Releases.
         """
         client = discogs_client(ctx)
         try:

@@ -1,11 +1,17 @@
 """Contract test on the tool catalog Claude sees. Later tickets extend the snapshot."""
 
+import re
 from typing import Any
 
 from fastmcp import Client
 from inline_snapshot import snapshot
 
 MIN_DESCRIPTION_LENGTH = 150
+TOOL_NAME = re.compile(r"\bdiscogs_[a-z_]+")
+
+
+def mentioned_tools(text: str | None) -> set[str]:
+    return set(TOOL_NAME.findall(text or ""))
 
 
 async def test_tool_catalog_matches_the_contract(client: Client[Any]) -> None:
@@ -20,6 +26,7 @@ async def test_tool_catalog_matches_the_contract(client: Client[Any]) -> None:
             "open_world": tool.annotations.open_world_hint if tool.annotations else None,
             "idempotent": tool.annotations.idempotent_hint if tool.annotations else None,
             "asks_to_confirm": (tool.meta or {}).get("anthropic/requiresUserInteraction"),
+            "points_to": sorted(mentioned_tools(tool.description) - {tool.name}),
         }
         for tool in sorted(tools, key=lambda tool: tool.name)
     ]
@@ -34,6 +41,7 @@ async def test_tool_catalog_matches_the_contract(client: Client[Any]) -> None:
                 "open_world": True,
                 "idempotent": None,
                 "asks_to_confirm": None,
+                "points_to": ["discogs_get_prices", "discogs_list_collection"],
             },
             {
                 "name": "discogs_get_prices",
@@ -43,6 +51,11 @@ async def test_tool_catalog_matches_the_contract(client: Client[Any]) -> None:
                 "open_world": True,
                 "idempotent": None,
                 "asks_to_confirm": None,
+                "points_to": [
+                    "discogs_list_master_releases",
+                    "discogs_search",
+                    "discogs_wantlist_prices",
+                ],
             },
             {
                 "name": "discogs_get_release",
@@ -52,6 +65,11 @@ async def test_tool_catalog_matches_the_contract(client: Client[Any]) -> None:
                 "open_world": True,
                 "idempotent": None,
                 "asks_to_confirm": None,
+                "points_to": [
+                    "discogs_get_prices",
+                    "discogs_list_master_releases",
+                    "discogs_search",
+                ],
             },
             {
                 "name": "discogs_list_collection",
@@ -61,6 +79,11 @@ async def test_tool_catalog_matches_the_contract(client: Client[Any]) -> None:
                 "open_world": True,
                 "idempotent": None,
                 "asks_to_confirm": None,
+                "points_to": [
+                    "discogs_collection_summary",
+                    "discogs_match_collection",
+                    "discogs_search",
+                ],
             },
             {
                 "name": "discogs_list_master_releases",
@@ -70,6 +93,7 @@ async def test_tool_catalog_matches_the_contract(client: Client[Any]) -> None:
                 "open_world": True,
                 "idempotent": None,
                 "asks_to_confirm": None,
+                "points_to": ["discogs_get_prices", "discogs_get_release", "discogs_search"],
             },
             {
                 "name": "discogs_list_wantlist",
@@ -79,6 +103,11 @@ async def test_tool_catalog_matches_the_contract(client: Client[Any]) -> None:
                 "open_world": True,
                 "idempotent": None,
                 "asks_to_confirm": None,
+                "points_to": [
+                    "discogs_list_collection",
+                    "discogs_search",
+                    "discogs_wantlist_prices",
+                ],
             },
             {
                 "name": "discogs_match_collection",
@@ -88,6 +117,7 @@ async def test_tool_catalog_matches_the_contract(client: Client[Any]) -> None:
                 "open_world": True,
                 "idempotent": None,
                 "asks_to_confirm": None,
+                "points_to": ["discogs_list_collection", "discogs_search"],
             },
             {
                 "name": "discogs_search",
@@ -97,6 +127,13 @@ async def test_tool_catalog_matches_the_contract(client: Client[Any]) -> None:
                 "open_world": True,
                 "idempotent": None,
                 "asks_to_confirm": None,
+                "points_to": [
+                    "discogs_get_release",
+                    "discogs_list_collection",
+                    "discogs_list_master_releases",
+                    "discogs_list_wantlist",
+                    "discogs_match_collection",
+                ],
             },
             {
                 "name": "discogs_wantlist_add",
@@ -106,6 +143,11 @@ async def test_tool_catalog_matches_the_contract(client: Client[Any]) -> None:
                 "open_world": True,
                 "idempotent": True,
                 "asks_to_confirm": None,
+                "points_to": [
+                    "discogs_get_release",
+                    "discogs_list_master_releases",
+                    "discogs_search",
+                ],
             },
             {
                 "name": "discogs_wantlist_prices",
@@ -115,6 +157,7 @@ async def test_tool_catalog_matches_the_contract(client: Client[Any]) -> None:
                 "open_world": True,
                 "idempotent": None,
                 "asks_to_confirm": None,
+                "points_to": ["discogs_get_prices", "discogs_list_wantlist"],
             },
             {
                 "name": "discogs_wantlist_remove",
@@ -124,6 +167,7 @@ async def test_tool_catalog_matches_the_contract(client: Client[Any]) -> None:
                 "open_world": True,
                 "idempotent": None,
                 "asks_to_confirm": True,
+                "points_to": ["discogs_list_wantlist"],
             },
         ]
     )
@@ -231,6 +275,35 @@ async def test_every_tool_explains_itself(client: Client[Any]) -> None:
         if len(tool.description or "") < MIN_DESCRIPTION_LENGTH
     }
     assert short == {}
+
+
+async def test_instructions_say_which_tool_to_use_for_what(client: Client[Any]) -> None:
+    tools = await client.list_tools()
+
+    assert {tool.name for tool in tools} - mentioned_tools(client.instructions) == set()
+
+
+async def test_every_tool_points_to_another_tool(client: Client[Any]) -> None:
+    tools = await client.list_tools()
+
+    alone = [tool.name for tool in tools if not mentioned_tools(tool.description) - {tool.name}]
+    assert alone == []
+
+
+async def test_descriptions_name_only_tools_that_exist(client: Client[Any]) -> None:
+    tools = await client.list_tools()
+    prompts = await client.list_prompts()
+    prompt = await client.get_prompt("identify_release", {"description": "a 7-inch single"})
+    known = {tool.name for tool in tools}
+
+    texts = [
+        client.instructions,
+        *(tool.description for tool in tools),
+        *(str(argument) for tool in tools for argument in tool.input_schema.values()),
+        *(item.description for item in prompts),
+        *(str(message.content) for message in prompt.messages),
+    ]
+    assert set().union(*(mentioned_tools(text) for text in texts)) - known == set()
 
 
 async def test_tools_return_text_without_an_output_schema(client: Client[Any]) -> None:
