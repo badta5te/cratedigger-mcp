@@ -321,6 +321,9 @@ class _Pacer:
     With plenty of quota it never waits. Below the low mark it spreads the remaining requests
     over the window, waiting the whole window when none are left, so Discogs does not have to
     answer HTTP 429. Time spent idle counts towards the wait.
+
+    Discogs counts `X-Discogs-Ratelimit-Remaining` before the request it answers, so the quota
+    left after that request is one less.
     """
 
     def __init__(self, clock: Clock) -> None:
@@ -349,7 +352,7 @@ class _Pacer:
         limit = _int_header(response, "X-Discogs-Ratelimit")
         remaining = _int_header(response, "X-Discogs-Ratelimit-Remaining")
         if limit is not None and remaining is not None:
-            self._limit, self._remaining = limit, remaining
+            self._limit, self._remaining = limit, max(0, remaining - 1)
 
     def _delay(self) -> float:
         if self._limit is None or self._remaining is None or self._last_request_at is None:

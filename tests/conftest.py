@@ -47,7 +47,9 @@ class FakeDiscogs:
     """A fake api.discogs.com that serves fixtures and records every request it receives.
 
     It enforces a rate limit over a sliding window, reports it in the `X-Discogs-Ratelimit-*`
-    headers and answers HTTP 429 when the limit is exceeded, as Discogs documents it.
+    headers and answers HTTP 429 when the limit is exceeded, as Discogs documents it. Like
+    Discogs (captured on issue #3), `Used` counts the requests made before the one being
+    answered, so the first request of a window answers `Used: 0`, `Remaining: 60`.
     """
 
     RATE_LIMIT = 60
@@ -112,14 +114,16 @@ class FakeDiscogs:
         self.statuses.append(response.status_code)
         return response
 
-    def _count_request(self) -> bool:
-        """Count this request in the window; False when it exceeds the limit."""
+    def _count_request(self) -> int | None:
+        """Count this request in the window and return how many were counted before it; None
+        when it exceeds the limit."""
         now = self.clock.now()
         self._counted_at = [at for at in self._counted_at if at > now - self.WINDOW]
-        if len(self._counted_at) >= self.RATE_LIMIT:
-            return False
+        used = len(self._counted_at)
+        if used >= self.RATE_LIMIT:
+            return None
         self._counted_at.append(now)
-        return True
+        return used
 
     def _rate_limit_headers(self, used: int) -> dict[str, str]:
         return {
@@ -138,13 +142,14 @@ class FakeDiscogs:
             return httpx2.Response(401, json=load_fixture("error_401.json"))
         throttled = self.throttled_requests > 0
         self.throttled_requests = max(0, self.throttled_requests - 1)
-        if throttled or not self._count_request():
+        used = None if throttled else self._count_request()
+        if used is None:
             return httpx2.Response(
                 429,
                 headers=self._rate_limit_headers(used=self.RATE_LIMIT),
                 json={"message": "You are making requests too quickly."},
             )
-        headers = self._rate_limit_headers(used=len(self._counted_at))
+        headers = self._rate_limit_headers(used=used)
         if self.failing_status is not None:
             return httpx2.Response(self.failing_status)
         if self.non_json_body is not None:

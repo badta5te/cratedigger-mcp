@@ -3,6 +3,8 @@
 from datetime import timedelta
 from typing import Any
 
+import httpx2
+import pytest
 from fastmcp import Client
 
 from tests.conftest import TEST_TOKEN, FakeClock, FakeDiscogs, call_tool_text
@@ -55,6 +57,25 @@ async def test_low_remaining_quota_slows_requests_down_before_discogs_says_429(
     assert sum(clock.sleeps) > 0
 
 
+@pytest.mark.parametrize(
+    "used_by_others", [0, FakeDiscogs.RATE_LIMIT - 2, FakeDiscogs.RATE_LIMIT - 1]
+)
+async def test_running_out_of_the_window_waits_instead_of_drawing_a_429(
+    client: Client[Any], discogs: FakeDiscogs, clock: FakeClock, used_by_others: int
+) -> None:
+    discogs.use_quota(used_by_others)  # other clients of the token spent part of this minute
+    release_ids = range(1, FakeDiscogs.RATE_LIMIT - used_by_others + 3)  # past the window's end
+    for release_id in release_ids:
+        discogs.add_release(release_id)
+
+    for release_id in release_ids:
+        is_error, text = await call_get_release(client, release_id)
+        assert not is_error, text
+
+    assert 429 not in discogs.statuses
+    assert sum(clock.sleeps) > 0
+
+
 async def test_ample_quota_means_no_waiting(
     client: Client[Any], discogs: FakeDiscogs, clock: FakeClock
 ) -> None:
@@ -73,10 +94,30 @@ async def test_quota_recovered_while_idle_means_no_waiting(
     client: Client[Any], discogs: FakeDiscogs, clock: FakeClock
 ) -> None:
     discogs.use_quota(58)
-    await call_get_release(client, 249504)  # Discogs reports 1 request left
+    await call_get_release(client, 249504)  # Discogs reports Remaining 2: 1 request left
     clock.advance(timedelta(minutes=2))
 
     is_error, text = await call_get_release(client, 1621435)
 
     assert not is_error, text
     assert clock.sleeps == []
+
+
+async def test_fake_discogs_counts_the_requests_before_the_current_one(
+    discogs: FakeDiscogs,
+) -> None:
+    # As Discogs answered in the capture recorded on issue #3.
+    async with httpx2.AsyncClient(
+        transport=discogs.transport, base_url="https://api.discogs.com"
+    ) as http:
+        responses = [await http.get("/releases/249504") for _ in range(61)]
+
+    def quota(number: int) -> tuple[str, str]:
+        headers = responses[number - 1].headers
+        return headers["X-Discogs-Ratelimit-Used"], headers["X-Discogs-Ratelimit-Remaining"]
+
+    assert quota(1) == ("0", "60")
+    assert quota(10) == ("9", "51")
+    assert quota(60) == ("59", "1")
+    assert responses[59].status_code == 200
+    assert responses[60].status_code == 429
