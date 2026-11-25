@@ -211,7 +211,7 @@ async def test_collection_tools_point_to_the_other_tools(client: Client[Any]) ->
     tools = {tool.name: tool for tool in await client.list_tools()}
 
     listing = tools["discogs_list_collection"].description or ""
-    for other in ("discogs_search", "discogs_match_collection"):
+    for other in ("discogs_search", "discogs_match_collection", "use genre"):
         assert other in listing
     summary = tools["discogs_collection_summary"].description or ""
     for term in ("folder_id", "discogs_list_collection", "minimum, median and maximum"):
@@ -224,6 +224,7 @@ async def test_wantlist_listing_points_to_the_other_tools(client: Client[Any]) -
     description = tools["discogs_list_wantlist"].description or ""
     for term in (
         "artist and title text only",
+        "use genre",
         "discogs_search",
         "discogs_list_collection",
         "discogs_wantlist_prices",

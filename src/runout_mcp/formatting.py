@@ -262,6 +262,7 @@ def collection_copies(
     collection: Collection,
     chosen: list[Copy],
     query: str,
+    genre: str,
     folder: Folder | None,
     sort: CollectionSort,
     limit: int,
@@ -272,16 +273,26 @@ def collection_copies(
     `folder` is the folder browsed, None for the whole Collection.
     """
     footer = ["", attribution(collection_url(collection.owner))]
+    matching = _matching(query, genre)
     criteria = [
-        *([f'match "{query}"'] if query else []),
+        *([f"match {matching}"] if matching else []),
         *([f"in folder {_folder_label(folder)}"] if folder else []),
     ]
     if not chosen:
         if not criteria:
             return "\n".join([f"The Collection of {collection.owner} holds no Copies.", *footer])
-        advice = " Try fewer words or another spelling." if query else ""
+        in_scope = [
+            copy.release
+            for copy in collection.copies
+            if folder is None or copy.folder_id == folder.id
+        ]
+        where = f"in folder {_folder_label(folder)}" if folder else "in the Collection"
+        advice = [
+            *(["Try fewer words or another spelling."] if query else []),
+            *([_genres_present(in_scope, where)] if genre else []),
+        ]
         nothing = f"No Copies in the Collection of {collection.owner} {' '.join(criteria)}."
-        return "\n".join([nothing + advice, *footer])
+        return "\n".join([" ".join([nothing, *advice]), *footer])
     pages = math.ceil(len(chosen) / limit)
     if page > pages:
         return "\n".join(
@@ -295,6 +306,7 @@ def collection_copies(
         [
             f"Collection of {collection.owner}",
             *([f'Copies matching "{query}"'] if query else []),
+            *([f'genre "{genre}"'] if genre else []),
             *([f"folder {_folder_label(folder)}"] if folder else []),
             COLLECTION_SORTS[sort],
         ]
@@ -349,11 +361,11 @@ def collection_summary(summary: CollectionSummary) -> str:
 
 
 def wantlist_wants(
-    wantlist: Wantlist, chosen: list[Want], query: str, limit: int, page: int
+    wantlist: Wantlist, chosen: list[Want], query: str, genre: str, limit: int, page: int
 ) -> str:
     """One page of the chosen Wants, numbered across pages, with a next-page hint."""
     footer = ["", attribution(wantlist_url(wantlist.owner))]
-    nothing = _no_wants(wantlist, chosen, query, limit, page)
+    nothing = _no_wants(wantlist, chosen, query, genre, limit, page)
     if nothing:
         return "\n".join([nothing, *footer])
     pages = math.ceil(len(chosen) / limit)
@@ -361,6 +373,7 @@ def wantlist_wants(
         [
             f"Wantlist of {wantlist.owner}",
             *([f'Wants matching "{query}"'] if query else []),
+            *([f'genre "{genre}"'] if genre else []),
             "newest first",
         ]
     )
@@ -384,6 +397,7 @@ def wantlist_prices(
     chosen: list[Want],
     checked: list[tuple[Want, MarketplaceCheck | None]],
     query: str,
+    genre: str,
     currency: Currency,
     max_price: float | None,
     limit: int,
@@ -395,7 +409,7 @@ def wantlist_prices(
     none. Wants for sale above `max_price` are only counted; Wants not for sale are listed apart.
     """
     footer = ["", attribution(wantlist_url(wantlist.owner))]
-    nothing = _no_wants(wantlist, chosen, query, limit, page)
+    nothing = _no_wants(wantlist, chosen, query, genre, limit, page)
     if nothing:
         return "\n".join([nothing, *footer])
     pages = math.ceil(len(chosen) / limit)
@@ -415,6 +429,7 @@ def wantlist_prices(
         [
             f"Wantlist of {wantlist.owner}",
             *([f'Wants matching "{query}"'] if query else []),
+            *([f'genre "{genre}"'] if genre else []),
             f"Lowest prices in {currency}",
             *([f"at or under {max_price_text}"] if max_price is not None else []),
             "cheapest first",
@@ -457,19 +472,52 @@ def wantlist_prices(
     return "\n".join(lines)
 
 
-def _no_wants(wantlist: Wantlist, chosen: list[Want], query: str, limit: int, page: int) -> str:
+def _no_wants(
+    wantlist: Wantlist, chosen: list[Want], query: str, genre: str, limit: int, page: int
+) -> str:
     """Why a page of the chosen Wants is empty, or "" when it is not."""
     if not chosen:
-        if not query:
+        if not query and not genre:
             return f"The Wantlist of {wantlist.owner} holds no Wants."
-        return (
-            f'No Wants on the Wantlist of {wantlist.owner} match "{query}". '
-            "Try fewer words or another spelling."
-        )
+        criteria = _matching(query, genre)
+        advice = [
+            *(["Try fewer words or another spelling."] if query else []),
+            *(
+                [_genres_present([want.release for want in wantlist.wants], "on the Wantlist")]
+                if genre
+                else []
+            ),
+        ]
+        return f"No Wants on the Wantlist of {wantlist.owner} match {criteria}. " + " ".join(advice)
     pages = math.ceil(len(chosen) / limit)
     if page > pages:
         return f"No Wants on page {page}: the list has {pages} pages of {limit}. Use a lower page."
     return ""
+
+
+def _genres_present(releases: list[CollectionRelease], where: str) -> str:
+    """The genres and the styles of `releases`, each with how many of them have it, most
+    common first, as a hint for a genre that matched nothing. `where` says where they are,
+    e.g. "on the Wantlist"."""
+    genres = Counter(genre for release in releases for genre in release.genres)
+    styles = Counter(style for release in releases for style in release.styles)
+    return (
+        f"Genres {where}: {_tally(genres)}. Styles: {_tally(styles)}. "
+        "Ask again with one of these as the genre."
+    )
+
+
+def _tally(counts: Counter[str]) -> str:
+    """Every name in `counts` as "name (count)", most common first."""
+    ranked = sorted(counts.items(), key=lambda item: (-item[1], item[0].casefold()))
+    return ", ".join(f"{name} ({count})" for name, count in ranked) or "none"
+
+
+def _matching(query: str, genre: str) -> str:
+    """What the chosen entries had to match, e.g. '"astley" and genre "pop"'."""
+    return " and ".join(
+        [*([f'"{query}"'] if query else []), *([f'genre "{genre}"'] if genre else [])]
+    )
 
 
 def _lowest_price(stats: MarketplaceStats) -> LowestPrice | None:
@@ -606,16 +654,27 @@ def _want_line(want: Want) -> str:
 
 
 def _listed_release_line(release: CollectionRelease, *extra: str) -> str:
-    """Artist — title, year, Format, the first label and catalog number, then `extra`."""
+    """Artist — title, year, Format, the first label and catalog number, genres and styles,
+    then `extra`."""
     label = release.labels[0] if release.labels else None
     details = [
         f"{artist_credit(release.artists)} — {release.title}",
         str(release.year) if release.year else "",
         _formats(release.formats),
         " – ".join(filter(None, [label.name, label.catno])) if label else "",
+        _genres_and_styles(release),
         *extra,
     ]
     return " · ".join(filter(None, details)) + f" [release_id={release.id}]"
+
+
+def _genres_and_styles(release: CollectionRelease) -> str:
+    """The genres, then the styles in brackets, e.g. "Electronic, Pop (Synth-pop)"."""
+    genres = ", ".join(release.genres)
+    styles = ", ".join(release.styles)
+    if genres and styles:
+        return f"{genres} ({styles})"
+    return genres or styles
 
 
 def _condition(copy: Copy, fields: list[CollectionField]) -> str:

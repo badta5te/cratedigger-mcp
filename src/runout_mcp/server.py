@@ -437,6 +437,13 @@ def create_server(
                 "text, ignoring case, e.g. 'astley'."
             ),
         ] = "",
+        genre: Annotated[
+            str,
+            Field(
+                description="Only Copies with this Discogs genre or style, ignoring case, "
+                "e.g. 'jazz', 'techno', 'nu metal'."
+            ),
+        ] = "",
         folder_id: Annotated[
             int,
             Field(
@@ -457,17 +464,20 @@ def create_server(
     ) -> str:
         """List the Copies in the Owner's own Discogs Collection: vinyl, CDs, any Format.
 
-        Use it for "what do I have", "do I have anything by X", "what did I add recently" or
-        to browse one Collection folder. Newest first unless another sort is asked for, and
-        paged. Each line carries the Release, its Format, the folder, the condition (Media and
-        Sleeve grades) and the release_id, and marks Releases the Owner has several Copies
-        of. The query matches artist and title text only. Do not use it to find Releases the
+        Use it for "what do I have", "do I have anything by X", "what techno do I have",
+        "what did I add recently" or to browse one Collection folder. Newest first unless
+        another sort is asked for, and paged. Each line carries the Release, its Format, its
+        genres and styles, the folder, the condition (Media and Sleeve grades) and the
+        release_id, and marks Releases the Owner has several Copies of. The query matches
+        artist and title text only; use genre for a genre or style such as "jazz" or "nu
+        metal". When a genre matches nothing, the answer lists the genres and styles in the
+        Collection to ask again with. Do not use it to find Releases the
         Owner lacks (use discogs_search), use discogs_match_collection to check a list of
         albums from another source, and discogs_collection_summary for the size of each folder
         and the value of the Collection.
         """
         collection = await owner_collection(ctx)
-        query = query.strip()
+        query, genre = query.strip(), genre.strip()
         folder = collection.folder(folder_id) if folder_id else None
         if folder_id and folder is None:
             listed = ", ".join(
@@ -477,8 +487,8 @@ def create_server(
                 f"Folder {folder_id} not found in the Collection of {collection.owner}. "
                 f"Its folders: {listed}."
             )
-        chosen = select_copies(collection, query, folder_id, sort)
-        return collection_copies(collection, chosen, query, folder, sort, limit, page)
+        chosen = select_copies(collection, query, genre, folder_id, sort)
+        return collection_copies(collection, chosen, query, genre, folder, sort, limit, page)
 
     @mcp.tool(title="List My Discogs Wantlist", annotations=READ_ONLY, output_schema=None)
     async def discogs_list_wantlist(
@@ -490,23 +500,33 @@ def create_server(
                 "text, ignoring case, e.g. 'astley'."
             ),
         ] = "",
+        genre: Annotated[
+            str,
+            Field(
+                description="Only Wants with this Discogs genre or style, ignoring case, "
+                "e.g. 'jazz', 'techno', 'drum and bass'."
+            ),
+        ] = "",
         limit: Annotated[int, Field(description="Wants per page.", ge=1, le=50)] = 20,
         page: Annotated[int, Field(description="Page of Wants, from 1.", ge=1)] = 1,
     ) -> str:
         """List the Wants on the Owner's own Discogs Wantlist: the Releases they want to get.
 
-        Use it for "what is on my Wantlist", "do I want anything by X" or "what did I add to
-        my Wantlist recently". Newest first and paged. Each line carries the Release, its
-        Format, label and catalog number, when it was added and the release_id. The query
-        matches artist and title text only: the lines carry no genres or styles, so a
-        query such as "jazz" finds only artists and titles containing the word. Do not use it
+        Use it for "what is on my Wantlist", "do I want anything by X", "what jazz is on my
+        Wantlist" or "what did I add to my Wantlist recently". Newest first and paged. Each
+        line carries the Release, its Format, label and catalog number, its genres and
+        styles, when it was added and the release_id. The query matches
+        artist and title text only; use genre for a genre or style such as "jazz" or "drum
+        and bass". When a genre matches nothing, the answer lists the genres and styles on the
+        Wantlist to ask again with. Do not use it
         to find Releases in the catalog (use discogs_search) or to see what the Owner already
         has (use discogs_list_collection), and use discogs_wantlist_prices for what the Wants
         cost.
         """
         wantlist = await owner_wantlist(ctx)
-        query = query.strip()
-        return wantlist_wants(wantlist, select_wants(wantlist, query), query, limit, page)
+        query, genre = query.strip(), genre.strip()
+        chosen = select_wants(wantlist, query, genre)
+        return wantlist_wants(wantlist, chosen, query, genre, limit, page)
 
     @mcp.tool(title="Get Prices of My Discogs Wantlist", annotations=READ_ONLY, output_schema=None)
     async def discogs_wantlist_prices(
@@ -530,6 +550,13 @@ def create_server(
                 "text, ignoring case, e.g. 'astley'."
             ),
         ] = "",
+        genre: Annotated[
+            str,
+            Field(
+                description="Only Wants with this Discogs genre or style, ignoring case, "
+                "e.g. 'techno', 'drum and bass'."
+            ),
+        ] = "",
         limit: Annotated[
             int,
             Field(
@@ -542,7 +569,10 @@ def create_server(
     ) -> str:
         """Check what the Wants on the Owner's own Discogs Wantlist cost on the Marketplace now.
 
-        Use it for "what on my Wantlist is cheap right now" or "which Wants are under 30 EUR".
+        Use it for "what on my Wantlist is cheap right now", "which Wants are under 30 EUR" or
+        "which techno Wants are cheap". Each line carries the Release with its genres and
+        styles. The query matches artist and title text only; use genre for a genre or style
+        such as "techno" or "drum and bass".
         It checks the Lowest price of at most 30 Wants per call (a page of the Wantlist, newest
         first), keeps those at or under max_price, sorts them from cheapest and lists the Wants
         with nothing for sale apart. When more Wants remain, the response says which page to
@@ -553,8 +583,8 @@ def create_server(
         """
         chosen_currency = currency or settings.discogs_currency
         wantlist = await owner_wantlist(ctx)
-        query = query.strip()
-        chosen = select_wants(wantlist, query)
+        query, genre = query.strip(), genre.strip()
+        chosen = select_wants(wantlist, query, genre)
         start = (page - 1) * limit
         checked: list[tuple[Want, MarketplaceCheck | None]] = []
         # One after another, as in discogs_get_prices: a failure keeps the checks made so far.
@@ -566,7 +596,7 @@ def create_server(
             except DiscogsError as error:
                 raise tool_error(error) from None
         return wantlist_prices(
-            wantlist, chosen, checked, query, chosen_currency, max_price, limit, page
+            wantlist, chosen, checked, query, genre, chosen_currency, max_price, limit, page
         )
 
     @mcp.tool(title="Add to My Discogs Wantlist", annotations=WANTLIST_ADD, output_schema=None)

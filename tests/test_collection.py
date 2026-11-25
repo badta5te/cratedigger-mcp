@@ -22,20 +22,22 @@ async def test_copies_are_listed_newest_first_with_their_release_ids(
 
     assert text == (
         "Collection of example-owner, newest first: page 1 of 1 (5 Copies)\n"
-        "1. Rick Astley — Wonderful You · 1991 · CD, Single, Promo · RCA – RDJ62068-2 · "
+        "1. Rick Astley — Wonderful You · 1991 · CD, Single, Promo · RCA – RDJ62068-2 · Pop · "
         "added 2026-10-28 · folder CD · Sleeve Condition VG+ [release_id=3499619]\n"
         "2. Rick Astley — Never Gonna Give You Up · 1987 · "
-        'Vinyl, 7", 45 RPM, Single, Stereo, CBS Pressing · RCA – PB 41447 · added 2026-10-12 · '
-        "folder Uncategorized [release_id=249504] · one of 2 Copies of this Release\n"
+        'Vinyl, 7", 45 RPM, Single, Stereo, CBS Pressing · RCA – PB 41447 · '
+        "Electronic, Pop (Euro-Disco) · added 2026-10-12 · folder Uncategorized "
+        "[release_id=249504] · one of 2 Copies of this Release\n"
         "3. Rick Astley — Original Hit Singles · 1989 · CD, Mini, Single · RCA – PD 42639 · "
-        "added 2026-09-30 · folder CD · Media Condition NM or M-, Sleeve Condition NM or M- "
-        "[release_id=1570630]\n"
+        "Pop · added 2026-09-30 · folder CD · Media Condition NM or M-, "
+        "Sleeve Condition NM or M- [release_id=1570630]\n"
         '4. Fishbone — Swim · 1993 · Vinyl, 12", Promo · Columbia – XPR 1948 · '
-        "added 2026-09-14 · folder Records · Media Condition VG+, Sleeve Condition VG+ "
-        "[release_id=1621435]\n"
+        "Rock (Alternative Rock, Funk Metal) · added 2026-09-14 · folder Records · "
+        "Media Condition VG+, Sleeve Condition VG+ [release_id=1621435]\n"
         "5. Rick Astley — Never Gonna Give You Up · 1987 · "
-        'Vinyl, 7", 45 RPM, Single, Stereo, CBS Pressing · RCA – PB 41447 · added 2026-08-02 · '
-        "folder Records · Media Condition NM or M-, Sleeve Condition VG+ [release_id=249504] · "
+        'Vinyl, 7", 45 RPM, Single, Stereo, CBS Pressing · RCA – PB 41447 · '
+        "Electronic, Pop (Euro-Disco) · added 2026-08-02 · folder Records · "
+        "Media Condition NM or M-, Sleeve Condition VG+ [release_id=249504] · "
         "one of 2 Copies of this Release\n"
         "\n"
         "Showing 1–5 of 5. Use discogs_get_release with a release_id for the full card.\n"
@@ -189,8 +191,9 @@ async def test_a_folder_keeps_marking_copies_held_elsewhere(client: Client[Any])
         "Collection of example-owner, folder Uncategorized [folder_id=1], newest first: "
         "page 1 of 1 (1 Copy)",
         "1. Rick Astley — Never Gonna Give You Up · 1987 · "
-        'Vinyl, 7", 45 RPM, Single, Stereo, CBS Pressing · RCA – PB 41447 · added 2026-10-12 '
-        "[release_id=249504] · one of 2 Copies of this Release",
+        'Vinyl, 7", 45 RPM, Single, Stereo, CBS Pressing · RCA – PB 41447 · '
+        "Electronic, Pop (Euro-Disco) · added 2026-10-12 [release_id=249504] · "
+        "one of 2 Copies of this Release",
     ]
 
 
@@ -355,3 +358,45 @@ async def test_a_failed_username_lookup_is_tried_again(
     await list_collection(client)
 
     assert [request.url.path for request in discogs.requests].count("/oauth/identity") == 2
+
+
+async def test_genre_keeps_copies_with_a_matching_discogs_genre_or_style(
+    client: Client[Any],
+) -> None:
+    by_genre = await list_collection(client, genre="rock")
+    by_style = await list_collection(client, genre="Funk Metal")
+
+    assert by_genre.splitlines()[:2] == [
+        'Collection of example-owner, genre "rock", newest first: page 1 of 1 (1 Copy)',
+        '1. Fishbone — Swim · 1993 · Vinyl, 12", Promo · Columbia – XPR 1948 · '
+        "Rock (Alternative Rock, Funk Metal) · added 2026-09-14 · folder Records · "
+        "Media Condition VG+, Sleeve Condition VG+ [release_id=1621435]",
+    ]
+    assert "(1 Copy)" in by_style.splitlines()[0]
+    assert "[release_id=1621435]" in by_style
+
+
+async def test_a_genre_matching_nothing_lists_the_genres_and_styles_in_the_collection(
+    client: Client[Any],
+) -> None:
+    text = await list_collection(client, genre="jazz")
+
+    assert text.splitlines()[0] == (
+        'No Copies in the Collection of example-owner match genre "jazz". '
+        "Genres in the Collection: Pop (4), Electronic (2), Rock (1). "
+        "Styles: Euro-Disco (2), Alternative Rock (1), Funk Metal (1). "
+        "Ask again with one of these as the genre."
+    )
+
+
+async def test_a_genre_matching_nothing_in_a_folder_lists_the_genres_in_that_folder(
+    client: Client[Any],
+) -> None:
+    text = await list_collection(client, genre="jazz", folder_id=2000002)
+
+    assert text.splitlines()[0] == (
+        'No Copies in the Collection of example-owner match genre "jazz" in folder Records '
+        "[folder_id=2000002]. Genres in folder Records [folder_id=2000002]: Electronic (1), "
+        "Pop (1), Rock (1). Styles: Alternative Rock (1), Euro-Disco (1), Funk Metal (1). "
+        "Ask again with one of these as the genre."
+    )

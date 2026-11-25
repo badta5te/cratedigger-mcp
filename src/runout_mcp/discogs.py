@@ -250,6 +250,8 @@ class CollectionRelease(_Model):
     artists: list[Artist] = Field(default_factory=list)
     labels: list[Label] = Field(default_factory=list)
     formats: list[Format] = Field(default_factory=list)
+    genres: list[str] = Field(default_factory=list)
+    styles: list[str] = Field(default_factory=list)
 
 
 class _Paged(_Model):

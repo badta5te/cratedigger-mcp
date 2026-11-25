@@ -61,13 +61,15 @@ async def test_wants_are_sorted_cheapest_first_and_unsold_ones_listed_apart(
         "Lowest price: the cheapest current listing in any condition, excluding shipping; "
         "not a market value. Checked 2026-11-20 12:00 UTC.\n"
         "1. 4.00 EUR · 10 for sale · Rick Astley — Never Gonna Give You Up · 1987 · "
-        'Vinyl, 12", 45 RPM, Maxi-Single, Stereo · RCA – PT 41 448 [release_id=995860]\n'
+        'Vinyl, 12", 45 RPM, Maxi-Single, Stereo · RCA – PT 41 448 · '
+        "Electronic, Pop (Dance-pop, Synth-pop, Hi NRG) [release_id=995860]\n"
         "2. 12.50 EUR · 3 for sale · Rick Astley — First On Your Block · 1993 · "
-        "Cassette, Promo · RCA – RDJ-66342-4 [release_id=26304263]\n"
+        "Cassette, Promo · RCA – RDJ-66342-4 · Funk / Soul, Pop (Ballad, Soul) "
+        "[release_id=26304263]\n"
         "\n"
         "Nothing for sale right now:\n"
         '- Rick Astley — Never Gonna Give You Up · 1987 · Vinyl, 12", 45 RPM, Single, '
-        "Lyntone/Damont · RCA – PT 41448 [release_id=221824]\n"
+        "Lyntone/Damont · RCA – PT 41448 · Electronic, Pop (Synth-pop) [release_id=221824]\n"
         "\n"
         "Use discogs_get_release with a release_id for the full card.\n"
         "\n"
@@ -94,9 +96,11 @@ async def test_max_price_keeps_wants_at_or_under_it_and_counts_the_rest(
     )
     assert text.splitlines()[2:6] == [
         "1. 4.00 EUR · 10 for sale · Rick Astley — Never Gonna Give You Up · 1987 · "
-        'Vinyl, 12", 45 RPM, Maxi-Single, Stereo · RCA – PT 41 448 [release_id=995860]',
+        'Vinyl, 12", 45 RPM, Maxi-Single, Stereo · RCA – PT 41 448 · '
+        "Electronic, Pop (Dance-pop, Synth-pop, Hi NRG) [release_id=995860]",
         "2. 30.00 EUR · 1 for sale · Rick Astley — Never Gonna Give You Up · 1987 · "
-        'Vinyl, 12", 45 RPM, Single, Lyntone/Damont · RCA – PT 41448 [release_id=221824]',
+        'Vinyl, 12", 45 RPM, Single, Lyntone/Damont · RCA – PT 41448 · '
+        "Electronic, Pop (Synth-pop) [release_id=221824]",
         "1 Want costs more than 30.00 EUR.",
         "",
     ]
@@ -167,6 +171,21 @@ async def test_query_checks_only_the_matching_wants(
     assert stats_requests(discogs) == [str(MAXI_SINGLE), str(SINGLE)]
 
 
+async def test_genre_checks_only_the_wants_with_that_genre_or_style(
+    client: Client[Any], discogs: FakeDiscogs
+) -> None:
+    for_sale(discogs, MAXI_SINGLE, 4.0, 10)
+    for_sale(discogs, SINGLE, 6.0, 2)
+
+    text = await wantlist_prices(client, genre="synth-pop", max_price=5)
+
+    assert text.splitlines()[0] == (
+        'Wantlist of example-owner, genre "synth-pop", Lowest prices in EUR, '
+        "at or under 5.00 EUR, cheapest first: Wants 1–2 of 2 checked (newest first)"
+    )
+    assert stats_requests(discogs) == [str(MAXI_SINGLE), str(SINGLE)]
+
+
 @pytest.mark.parametrize("settings", [Settings(discogs_token=TEST_TOKEN, discogs_currency="GBP")])
 async def test_currency_comes_from_settings_or_the_call(
     client: Client[Any], discogs: FakeDiscogs
@@ -201,13 +220,15 @@ async def test_blocked_and_unknown_releases_are_listed_with_the_unsold_ones(
         "not a market value. Checked 2026-11-20 12:00 UTC.",
         "",
         "Nothing for sale right now:",
-        "- Rick Astley — First On Your Block · 1993 · Cassette, Promo · RCA – RDJ-66342-4 "
-        "[release_id=26304263] · no Marketplace stats on Discogs",
+        "- Rick Astley — First On Your Block · 1993 · Cassette, Promo · RCA – RDJ-66342-4 · "
+        "Funk / Soul, Pop (Ballad, Soul) [release_id=26304263] · "
+        "no Marketplace stats on Discogs",
         '- Rick Astley — Never Gonna Give You Up · 1987 · Vinyl, 12", 45 RPM, Maxi-Single, '
-        "Stereo · RCA – PT 41 448 [release_id=995860]",
+        "Stereo · RCA – PT 41 448 · Electronic, Pop (Dance-pop, Synth-pop, Hi NRG) "
+        "[release_id=995860]",
         '- Rick Astley — Never Gonna Give You Up · 1987 · Vinyl, 12", 45 RPM, Single, '
-        "Lyntone/Damont · RCA – PT 41448 [release_id=221824] · blocked from sale on the "
-        "Discogs Marketplace",
+        "Lyntone/Damont · RCA – PT 41448 · Electronic, Pop (Synth-pop) [release_id=221824] · "
+        "blocked from sale on the Discogs Marketplace",
     ]
 
 
@@ -216,8 +237,13 @@ async def test_blocked_and_unknown_releases_are_listed_with_the_unsold_ones(
     [
         ({"query": "zappa"}, 'No Wants on the Wantlist of example-owner match "zappa". Try fewer'),
         ({"page": 2}, "No Wants on page 2: the list has 1 pages of 30. Use a lower page."),
+        (
+            {"genre": "jazz"},
+            'No Wants on the Wantlist of example-owner match genre "jazz". Genres on the '
+            "Wantlist: Pop (3),",
+        ),
     ],
-    ids=["no match", "past the last page"],
+    ids=["no match", "past the last page", "no genre match"],
 )
 async def test_nothing_to_check_is_an_answer_without_price_requests(
     client: Client[Any], discogs: FakeDiscogs, arguments: dict[str, Any], answer: str

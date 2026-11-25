@@ -18,6 +18,14 @@ _Avoid_: pressing, edition, version, record (when an edition is meant)
 The physical medium of a Release: Vinyl, CD, Cassette and so on, with details such as LP, 7", 180g.
 _Avoid_: type, media, release type
 
+**Genre**:
+One of Discogs' broad musical categories a Release is filed under, such as Electronic, Rock or Jazz. A Release can have several.
+_Avoid_: category, tag
+
+**Style**:
+A narrower Discogs category within the genres, such as Techno, Drum n Bass or Nu Metal. A Release can have several, and Discogs does not say which genre each belongs to.
+_Avoid_: subgenre, tag
+
 ### Owner
 
 **Owner**:

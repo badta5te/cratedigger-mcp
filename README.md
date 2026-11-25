@@ -26,11 +26,11 @@ package and the command are both called `runout-mcp`.
 | `discogs_get_release` | The card of one Release: label, catalog number, Format, country, year, tracklist, have/want counts and Master; the detailed form adds matrix/runout, barcode and notes |
 | `discogs_list_master_releases` | Every Release of a Master, to compare the Releases of an album by country, year, label, catalog number and Format |
 | `discogs_get_prices` | The Lowest price, the number of copies for sale and the blocked-from-sale flag of 1 to 10 Releases |
-| `discogs_list_collection` | The Copies in your Collection, newest first, filtered by artist or title, by folder, with Format and condition |
+| `discogs_list_collection` | The Copies in your Collection, newest first, filtered by artist or title, by Discogs genre or style, by folder, with Format, genres and condition |
 | `discogs_collection_summary` | How many Copies each folder holds, and Discogs' minimum/median/maximum estimate of the Collection's value |
 | `discogs_match_collection` | Which of up to 200 albums from another source (Last.fm, Spotify, a pasted list) are in your Collection, on your Wantlist, possible matches or absent |
-| `discogs_list_wantlist` | The Wants on your Wantlist, newest first, filtered by artist or title |
-| `discogs_wantlist_prices` | The Lowest price of up to 30 Wants per call, cheapest first, optionally under a maximum price |
+| `discogs_list_wantlist` | The Wants on your Wantlist, newest first, filtered by artist or title and by Discogs genre or style |
+| `discogs_wantlist_prices` | The Lowest price of up to 30 Wants per call, cheapest first, optionally under a maximum price or of one genre or style |
 | `discogs_wantlist_add` | Adds a Release to your Wantlist; adding one that is already wanted changes nothing |
 | `discogs_wantlist_remove` | Removes a Want; marked destructive, so Claude asks you to confirm every call |
 

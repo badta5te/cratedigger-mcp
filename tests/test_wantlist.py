@@ -4,6 +4,7 @@ import copy
 from datetime import timedelta
 from typing import Any
 
+import pytest
 from fastmcp import Client
 
 from tests.conftest import FakeClock, FakeDiscogs, call_tool_text
@@ -23,11 +24,13 @@ async def test_wants_are_listed_newest_first_with_their_release_ids(
     assert text == (
         "Wantlist of example-owner, newest first: page 1 of 1 (3 Wants)\n"
         "1. Rick Astley — First On Your Block · 1993 · Cassette, Promo · RCA – RDJ-66342-4 · "
-        "added 2026-11-02 [release_id=26304263]\n"
+        "Funk / Soul, Pop (Ballad, Soul) · added 2026-11-02 [release_id=26304263]\n"
         '2. Rick Astley — Never Gonna Give You Up · 1987 · Vinyl, 12", 45 RPM, Maxi-Single, '
-        "Stereo · RCA – PT 41 448 · added 2026-10-21 [release_id=995860]\n"
+        "Stereo · RCA – PT 41 448 · Electronic, Pop (Dance-pop, Synth-pop, Hi NRG) · "
+        "added 2026-10-21 [release_id=995860]\n"
         '3. Rick Astley — Never Gonna Give You Up · 1987 · Vinyl, 12", 45 RPM, Single, '
-        "Lyntone/Damont · RCA – PT 41448 · added 2026-09-09 [release_id=221824]\n"
+        "Lyntone/Damont · RCA – PT 41448 · Electronic, Pop (Synth-pop) · added 2026-09-09 "
+        "[release_id=221824]\n"
         "\n"
         "Showing 1–3 of 3. Use discogs_get_release with a release_id for the full card.\n"
         "\n"
@@ -139,9 +142,11 @@ async def test_query_matches_artist_or_title_words_ignoring_case(
         'Wantlist of example-owner, Wants matching "GIVE astley", newest first: '
         "page 1 of 1 (2 Wants)",
         '1. Rick Astley — Never Gonna Give You Up · 1987 · Vinyl, 12", 45 RPM, Maxi-Single, '
-        "Stereo · RCA – PT 41 448 · added 2026-10-21 [release_id=995860]",
+        "Stereo · RCA – PT 41 448 · Electronic, Pop (Dance-pop, Synth-pop, Hi NRG) · "
+        "added 2026-10-21 [release_id=995860]",
         '2. Rick Astley — Never Gonna Give You Up · 1987 · Vinyl, 12", 45 RPM, Single, '
-        "Lyntone/Damont · RCA – PT 41448 · added 2026-09-09 [release_id=221824]",
+        "Lyntone/Damont · RCA – PT 41448 · Electronic, Pop (Synth-pop) · added 2026-09-09 "
+        "[release_id=221824]",
     ]
     assert by_credited_name.splitlines()[1].startswith("1. Rick A. — First On Your Block · ")
 
@@ -228,3 +233,68 @@ async def test_a_failed_check_keeps_the_snapshot(client: Client[Any], discogs: F
     await list_wantlist(client)
 
     assert wants_pages(discogs) == ["1"]
+
+
+async def test_genre_keeps_wants_with_a_matching_discogs_genre_or_style(
+    client: Client[Any],
+) -> None:
+    by_style = await list_wantlist(client, genre="SYNTH-POP")
+    by_genre = await list_wantlist(client, genre="pop")
+    pop_as_text = await list_wantlist(client, query="pop")
+
+    assert by_style.splitlines()[0] == (
+        'Wantlist of example-owner, genre "SYNTH-POP", newest first: page 1 of 1 (2 Wants)'
+    )
+    assert "[release_id=995860]" in by_style
+    assert "[release_id=221824]" in by_style
+    assert "[release_id=26304263]" not in by_style
+    assert "(3 Wants)" in by_genre.splitlines()[0]
+    assert pop_as_text.startswith('No Wants on the Wantlist of example-owner match "pop".')
+
+
+@pytest.mark.parametrize(
+    "spelling", ["Drum n Bass", "drum and bass", "Drum & Bass", "drum'n'bass", "DnB", "d&b"]
+)
+async def test_genre_takes_the_usual_spellings_of_a_discogs_style(
+    client: Client[Any], discogs: FakeDiscogs, spelling: str
+) -> None:
+    discogs.wantlist[0]["basic_information"]["styles"] = ["Drum n Bass", "Neurofunk"]
+
+    text = await list_wantlist(client, genre=spelling)
+
+    assert "(1 Want)" in text.splitlines()[0]
+    assert "(Drum n Bass, Neurofunk) · added 2026-11-02 [release_id=26304263]" in text
+
+
+async def test_genre_matches_whole_words_of_a_genre_or_style(client: Client[Any]) -> None:
+    text = await list_wantlist(client, genre="electro")
+
+    assert text.startswith('No Wants on the Wantlist of example-owner match genre "electro".')
+
+
+async def test_a_genre_matching_nothing_lists_the_genres_and_styles_on_the_wantlist(
+    client: Client[Any],
+) -> None:
+    text = await list_wantlist(client, genre="jazz")
+
+    assert text.splitlines()[0] == (
+        'No Wants on the Wantlist of example-owner match genre "jazz". '
+        "Genres on the Wantlist: Pop (3), Electronic (2), Funk / Soul (1). "
+        "Styles: Synth-pop (2), Ballad (1), Dance-pop (1), Hi NRG (1), Soul (1). "
+        "Ask again with one of these as the genre."
+    )
+
+
+@pytest.mark.parametrize(("spelling", "wants"), [("synthpop", 2), ("FUNKSOUL", 1)])
+async def test_genre_matches_a_style_written_as_one_word(
+    client: Client[Any], spelling: str, wants: int
+) -> None:
+    text = await list_wantlist(client, genre=spelling)
+
+    assert f"({wants} Want" in text.splitlines()[0]
+
+
+async def test_a_genre_of_punctuation_only_matches_nothing(client: Client[Any]) -> None:
+    text = await list_wantlist(client, genre="!!!")
+
+    assert text.startswith('No Wants on the Wantlist of example-owner match genre "!!!". Genres')
