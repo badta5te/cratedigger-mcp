@@ -9,7 +9,7 @@ import pytest
 from fastmcp import Client
 from fastmcp.client.transports import StdioTransport
 
-START_SERVER = "from cratedigger_mcp.server import main; main()"
+START_SERVER = "from runout_mcp.server import main; main()"
 
 
 def clean_env(**extra: str) -> dict[str, str]:

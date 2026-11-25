@@ -23,7 +23,7 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field, StringConstraints
 
-from cratedigger_mcp.discogs import Collection, CollectionRelease, Copy, Want, Wantlist
+from runout_mcp.discogs import Collection, CollectionRelease, Copy, Want, Wantlist
 
 # Words that mark an edition rather than a different album. "remaster" counts as a stem.
 _QUALIFIERS = frozenset(

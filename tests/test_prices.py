@@ -6,7 +6,7 @@ from typing import Any
 import pytest
 from fastmcp import Client
 
-from cratedigger_mcp.settings import Settings
+from runout_mcp.settings import Settings
 from tests.conftest import TEST_TOKEN, FakeClock, FakeDiscogs, call_tool_text
 
 

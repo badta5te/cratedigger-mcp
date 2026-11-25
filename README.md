@@ -1,8 +1,8 @@
-# Cratedigger for Discogs
+# Runout for Discogs
 
-<!-- mcp-name: io.github.badta5te/cratedigger-mcp -->
+<!-- mcp-name: io.github.badta5te/runout-mcp -->
 
-`cratedigger-mcp` is a small local [MCP](https://modelcontextprotocol.io) server that lets Claude
+`runout-mcp` is a small local [MCP](https://modelcontextprotocol.io) server that lets Claude
 answer everyday questions about your Discogs world: Releases and pressings in the catalog,
 Marketplace prices, and your own Collection and Wantlist.
 
@@ -16,7 +16,7 @@ It runs on your machine over stdio, talks to the Discogs API with your own perso
 and stores nothing on disk.
 
 The name follows the Discogs rule for applications built on its API ("… for Discogs"). The
-package and the command are both called `cratedigger-mcp`.
+package and the command are both called `runout-mcp`.
 
 ## Tools
 
@@ -54,11 +54,11 @@ Wantlister sends alerts for your Wants.
 There is nothing to install by hand: Claude starts the server with
 
 ```sh
-uvx cratedigger-mcp
+uvx runout-mcp
 ```
 
 which downloads the package from PyPI on first use and runs it in an isolated environment. Pin a
-version with `uvx cratedigger-mcp@0.1.0`.
+version with `uvx runout-mcp@0.1.0`.
 
 ### Claude Desktop
 
@@ -72,9 +72,9 @@ Config**, or edit the file directly:
 ```json
 {
   "mcpServers": {
-    "cratedigger": {
+    "runout": {
       "command": "/absolute/path/to/uvx",
-      "args": ["cratedigger-mcp"],
+      "args": ["runout-mcp"],
       "env": { "DISCOGS_TOKEN": "your-personal-access-token" }
     }
   }
@@ -86,8 +86,8 @@ Restart Claude Desktop.
 ### Claude Code
 
 ```sh
-claude mcp add cratedigger --scope user -e DISCOGS_TOKEN=your-personal-access-token \
-  -- uvx cratedigger-mcp
+claude mcp add runout --scope user -e DISCOGS_TOKEN=your-personal-access-token \
+  -- uvx runout-mcp
 ```
 
 `--scope user` makes the server available in every project; leave it out to add it to the
@@ -128,8 +128,8 @@ just fix         # apply ruff fixes and formatting
 just serve       # run the server over stdio from the checkout (needs DISCOGS_TOKEN)
 ```
 
-To try a local checkout in Claude, use `uvx --from /absolute/path/to/cratedigger-mcp
-cratedigger-mcp` as the command.
+To try a local checkout in Claude, use `uvx --from /absolute/path/to/runout-mcp
+runout-mcp` as the command.
 
 Tests build the server through `create_server()` and call its tools through FastMCP's in-memory
 client against a fake Discogs (`httpx2.MockTransport`) serving anonymized fixtures. No test touches
@@ -150,7 +150,7 @@ identity to PyPI with OIDC, so no PyPI token is stored anywhere.
    version is on PyPI: `mcp-publisher login github`, then `mcp-publisher publish`.
 
 One-time setup before the first release: on PyPI, add a pending trusted publisher for the
-project `cratedigger-mcp` with owner `badta5te`, repository `cratedigger-mcp`, workflow
+project `runout-mcp` with owner `badta5te`, repository `runout-mcp`, workflow
 `release.yml` and environment `pypi`; on GitHub, create the `pypi` environment under
 **Settings → Environments**.
 
@@ -164,5 +164,5 @@ This application uses Discogs’ API but is not affiliated with, sponsored or en
 
 ## License
 
-Released under the [MIT License](https://github.com/badta5te/cratedigger-mcp/blob/main/LICENSE).
+Released under the [MIT License](https://github.com/badta5te/runout-mcp/blob/main/LICENSE).
 Copyright (c) 2026 Pavel Mikhailov.

@@ -6,7 +6,7 @@ import tomllib
 from pathlib import Path
 from typing import Any, get_args
 
-from cratedigger_mcp.discogs import Currency
+from runout_mcp.discogs import Currency
 
 ROOT = Path(__file__).parent.parent
 REGISTRY_DESCRIPTION_LIMIT = 100
@@ -36,7 +36,7 @@ def test_registry_entry_names_the_server_as_the_readme_marker_does() -> None:
     marker = re.search(r"<!-- mcp-name: (\S+) -->", readme())
 
     assert marker is not None
-    assert registry_entry()["name"] == marker.group(1) == "io.github.badta5te/cratedigger-mcp"
+    assert registry_entry()["name"] == marker.group(1) == "io.github.badta5te/runout-mcp"
 
 
 def test_registry_entry_points_to_the_pypi_package_run_with_uvx() -> None:
@@ -71,7 +71,7 @@ def test_readme_installs_from_pypi_and_carries_the_discogs_notices() -> None:
     text = " ".join(readme().split())
 
     for term in (
-        "uvx cratedigger-mcp",
+        "uvx runout-mcp",
         DISCOGS_DISCLAIMER,
         "Data provided by Discogs",
         "MIT License",

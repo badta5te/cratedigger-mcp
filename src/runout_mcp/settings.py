@@ -3,7 +3,7 @@
 from pydantic import SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from cratedigger_mcp.discogs import Currency
+from runout_mcp.discogs import Currency
 
 
 class Settings(BaseSettings):

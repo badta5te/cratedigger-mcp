@@ -24,8 +24,7 @@ async def test_every_request_carries_the_token_and_the_project_user_agent(
         assert request.url.host == "api.discogs.com"
         assert request.headers["Authorization"] == f"Discogs token={TEST_TOKEN}"
         assert request.headers["User-Agent"] == (
-            f"cratedigger-mcp/{version('cratedigger-mcp')} "
-            "+https://github.com/badta5te/cratedigger-mcp"
+            f"runout-mcp/{version('runout-mcp')} +https://github.com/badta5te/runout-mcp"
         )
 
 

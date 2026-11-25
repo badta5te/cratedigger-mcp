@@ -20,4 +20,4 @@ fix:
 
 # Run the server over stdio (needs DISCOGS_TOKEN)
 serve:
-    uv run cratedigger-mcp
+    uv run runout-mcp

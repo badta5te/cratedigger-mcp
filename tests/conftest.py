@@ -13,8 +13,8 @@ import httpx2
 import pytest
 from fastmcp import Client
 
-from cratedigger_mcp.server import create_server
-from cratedigger_mcp.settings import Settings
+from runout_mcp.server import create_server
+from runout_mcp.settings import Settings
 
 FIXTURES = Path(__file__).parent / "fixtures" / "discogs"
 TEST_TOKEN = "test-token-6f1d2c"

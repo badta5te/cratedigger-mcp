@@ -17,12 +17,12 @@ from urllib.parse import quote
 import httpx2
 from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
-from cratedigger_mcp import __version__
-from cratedigger_mcp.clock import Clock
+from runout_mcp import __version__
+from runout_mcp.clock import Clock
 
 API_URL = "https://api.discogs.com"
-REPOSITORY_URL = "https://github.com/badta5te/cratedigger-mcp"
-USER_AGENT = f"cratedigger-mcp/{__version__} +{REPOSITORY_URL}"
+REPOSITORY_URL = "https://github.com/badta5te/runout-mcp"
+USER_AGENT = f"runout-mcp/{__version__} +{REPOSITORY_URL}"
 TIMEOUT_SECONDS = 30.0
 # Discogs counts requests over a sliding window of this length. The limit itself is read from
 # the X-Discogs-Ratelimit header, never assumed.

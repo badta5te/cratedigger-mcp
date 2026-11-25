@@ -10,7 +10,7 @@ from datetime import UTC, datetime
 from typing import Literal
 from urllib.parse import quote, urlencode
 
-from cratedigger_mcp.discogs import (
+from runout_mcp.discogs import (
     Artist,
     Collection,
     CollectionField,
@@ -37,7 +37,7 @@ from cratedigger_mcp.discogs import (
     Want,
     Wantlist,
 )
-from cratedigger_mcp.matching import MATCH_RESULTS, AlbumMatch
+from runout_mcp.matching import MATCH_RESULTS, AlbumMatch
 
 ResponseFormat = Literal["concise", "detailed"]
 

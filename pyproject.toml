@@ -1,7 +1,7 @@
 [project]
-name = "cratedigger-mcp"
+name = "runout-mcp"
 version = "0.1.0"
-description = "Cratedigger for Discogs: an MCP server for your Discogs Collection, Wantlist, Releases and Marketplace prices."
+description = "Runout for Discogs: an MCP server for your Discogs Collection, Wantlist, Releases and Marketplace prices."
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]
@@ -22,11 +22,11 @@ dependencies = [
 ]
 
 [project.urls]
-Repository = "https://github.com/badta5te/cratedigger-mcp"
-Issues = "https://github.com/badta5te/cratedigger-mcp/issues"
+Repository = "https://github.com/badta5te/runout-mcp"
+Issues = "https://github.com/badta5te/runout-mcp/issues"
 
 [project.scripts]
-cratedigger-mcp = "cratedigger_mcp.server:main"
+runout-mcp = "runout_mcp.server:main"
 
 [build-system]
 requires = ["uv_build>=0.13.9,<0.14.0"]

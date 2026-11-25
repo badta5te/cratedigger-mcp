@@ -12,15 +12,15 @@ from fastmcp import Context, FastMCP
 from fastmcp.exceptions import ToolError
 from pydantic import Field, ValidationError
 
-from cratedigger_mcp.cache import (
+from runout_mcp.cache import (
     CATALOG_TTL,
     OWNER_SNAPSHOT_TTL,
     PRICE_TTL,
     TtlCache,
 )
-from cratedigger_mcp.clock import Clock, SystemClock
-from cratedigger_mcp.collection import select_copies, select_wants
-from cratedigger_mcp.discogs import (
+from runout_mcp.clock import Clock, SystemClock
+from runout_mcp.collection import select_copies, select_wants
+from runout_mcp.discogs import (
     Collection,
     CollectionSort,
     Currency,
@@ -36,7 +36,7 @@ from cratedigger_mcp.discogs import (
     Wantlist,
     build_http_client,
 )
-from cratedigger_mcp.formatting import (
+from runout_mcp.formatting import (
     ResponseFormat,
     album_matches,
     collection_copies,
@@ -50,11 +50,11 @@ from cratedigger_mcp.formatting import (
     wantlist_prices,
     wantlist_wants,
 )
-from cratedigger_mcp.matching import Album, match_albums
-from cratedigger_mcp.settings import Settings
+from runout_mcp.matching import Album, match_albums
+from runout_mcp.settings import Settings
 
 INSTRUCTIONS = """\
-Cratedigger for Discogs: the Owner's window onto Discogs, the vinyl and music database and \
+Runout for Discogs: the Owner's window onto Discogs, the vinyl and music database and \
 Marketplace. Use these tools for the Discogs catalog (Masters, Releases and pressings: label, \
 catalog number, Format, country, year, matrix/runout and barcode identifiers), Marketplace \
 prices of Releases, and the Owner's own Collection and Wantlist on Discogs. \
@@ -170,7 +170,7 @@ def create_server(
             yield {"discogs": DiscogsClient(http, clock)}
 
     mcp: FastMCP[dict[str, Any]] = FastMCP(
-        "cratedigger-mcp", instructions=INSTRUCTIONS, lifespan=lifespan, mask_error_details=True
+        "runout-mcp", instructions=INSTRUCTIONS, lifespan=lifespan, mask_error_details=True
     )
 
     def discogs_client(ctx: Context) -> DiscogsClient:
@@ -706,7 +706,7 @@ def create_server(
 
 
 MISSING_TOKEN = (
-    "cratedigger-mcp: DISCOGS_TOKEN is not set. Create a personal access token at "
+    "runout-mcp: DISCOGS_TOKEN is not set. Create a personal access token at "
     "https://www.discogs.com/settings/developers and pass it to the server in the "
     "DISCOGS_TOKEN environment variable."
 )
@@ -727,5 +727,5 @@ def main() -> None:
         problems = "; ".join(
             f"{'.'.join(map(str, problem['loc']))}: {problem['msg']}" for problem in error.errors()
         )
-        sys.exit(f"cratedigger-mcp: invalid configuration: {problems}")
+        sys.exit(f"runout-mcp: invalid configuration: {problems}")
     create_server(settings).run(transport="stdio", show_banner=False)

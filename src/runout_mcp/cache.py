@@ -8,7 +8,7 @@ from collections.abc import Awaitable, Callable, Hashable
 from datetime import datetime, timedelta
 from typing import Any, NamedTuple, cast
 
-from cratedigger_mcp.clock import Clock
+from runout_mcp.clock import Clock
 
 CATALOG_TTL = timedelta(hours=1)
 PRICE_TTL = timedelta(hours=1)

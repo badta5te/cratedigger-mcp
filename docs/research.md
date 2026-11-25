@@ -2,7 +2,7 @@
 
 > **Partly superseded (2026-11-20).** Scope, storage and naming decisions made after this research live in `docs/adr/` and `GLOSSARY.md` and override sections 3, 4, 6 and 7 where they differ. This document remains the factual research reference (sections 2, 5 and 8). Summary of the decisions:
 >
-> - **Name:** `cratedigger-mcp` ("Cratedigger for Discogs"), MIT. It replaces the `vinyl-mcp` placeholder.
+> - **Name:** `runout-mcp` ("Runout for Discogs"), MIT. It replaces the `vinyl-mcp` placeholder and the first choice, `cratedigger-mcp`, which was too close to the Discogs mark "Crate Diggers" ([ADR-0004](adr/0004-named-runout-for-discogs.md)).
 > - **Scope:** Discogs only, for a single Owner with a personal access token. No record notes and no Last.fm client; Claude joins other sources through their own connectors ([ADR-0001](adr/0001-discogs-only-server.md)).
 > - **Runtime:** local stdio only (Claude Desktop and Claude Code on the Owner's Mac). Stage 3 (remote, OAuth, hosting) is dropped.
 > - **Storage:** no database and no collector. Prices are cached in memory for 1 h; the Collection and Wantlist snapshots are checked against their first page on every call and reused for at most 5 min ([ADR-0003](adr/0003-owner-snapshots-checked-on-every-call.md)). No price watch or price history; background price alerts are left to Discogs' Wantlister ([ADR-0002](adr/0002-no-persistent-storage.md)).
@@ -577,7 +577,7 @@ All resolved on 2026-11-20; each answer follows its question.
 7. **Write tools.** Should the wantlist and collection be modifiable from Claude, or is read access plus notes enough?
    **Resolved:** Wantlist add and remove are in the MVP (remove always asks for confirmation); the Collection is read-only.
 8. **Project name and license.** The Discogs policy requires the "… for Discogs" format (2017 snapshot); `discogs-mcp` is free on PyPI but in a gray zone. MIT or Apache-2.0?
-   **Resolved:** `cratedigger-mcp` ("Cratedigger for Discogs"), MIT.
+   **Resolved:** `cratedigger-mcp` ("Cratedigger for Discogs"), MIT; renamed before the first release to `runout-mcp` ("Runout for Discogs"), see [ADR-0004](adr/0004-named-runout-for-discogs.md).
 9. **Collection and wantlist size.** It determines the collector's run time, the request cost of `query`, and whether a local SQLite cache of the collection is needed (see section 4, "Cost in Discogs requests").
    **Resolved:** assumed up to ~1,000 Copies and ~300 Wants; an in-memory cache is enough, no SQLite.
 10. **Default currency** for prices (EUR? RUB is not supported by Discogs: the `curr_abbr` list is USD, GBP, EUR, CAD, AUD, JPY, CHF, MXN, BRL, NZD, SEK, ZAR [DOC]).

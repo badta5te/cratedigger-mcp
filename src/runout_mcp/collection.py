@@ -5,7 +5,7 @@ Discogs has no text filter for the Collection or the Wantlist, so all of it happ
 the snapshots, and asking again with other choices costs no request.
 """
 
-from cratedigger_mcp.discogs import (
+from runout_mcp.discogs import (
     Collection,
     CollectionRelease,
     CollectionSort,
@@ -13,7 +13,7 @@ from cratedigger_mcp.discogs import (
     Want,
     Wantlist,
 )
-from cratedigger_mcp.formatting import artist_credit
+from runout_mcp.formatting import artist_credit
 
 
 def matches_query(query: str, release: CollectionRelease) -> bool:
