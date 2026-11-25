@@ -128,8 +128,9 @@ just fix         # apply ruff fixes and formatting
 just serve       # run the server over stdio from the checkout (needs DISCOGS_TOKEN)
 ```
 
-To try a local checkout in Claude, use `uvx --from /absolute/path/to/runout-mcp
-runout-mcp` as the command.
+To try a local checkout in Claude, use `uv run --directory /absolute/path/to/runout-mcp
+runout-mcp` as the command. It runs the code as it is in the checkout; `uvx --from` would keep
+serving the build it cached first.
 
 Tests build the server through `create_server()` and call its tools through FastMCP's in-memory
 client against a fake Discogs (`httpx2.MockTransport`) serving anonymized fixtures. No test touches
